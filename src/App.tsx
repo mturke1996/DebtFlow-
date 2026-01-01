@@ -1,22 +1,53 @@
-import { lazy, Suspense, useMemo, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, CircularProgress, Box } from '@mui/material';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createAppTheme } from './theme';
-import { useThemeStore } from './store/useThemeStore';
-import { useAuthStore } from './store/useAuthStore';
-import { useDataStore } from './store/useDataStore';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { lazy, Suspense, useMemo, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  ThemeProvider,
+  CssBaseline,
+  CircularProgress,
+  Box,
+} from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createAppTheme } from "./theme";
+import { useThemeStore } from "./store/useThemeStore";
+import { useAuthStore } from "./store/useAuthStore";
+import { useDataStore } from "./store/useDataStore";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 // Lazy load pages for code splitting
-const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
-const HomePage = lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
-const ClientsPage = lazy(() => import('./pages/ClientsPage').then(module => ({ default: module.ClientsPage })));
-const ClientProfilePage = lazy(() => import('./pages/ClientProfilePage').then(module => ({ default: module.ClientProfilePage })));
-const InvoicesPage = lazy(() => import('./pages/InvoicesPage').then(module => ({ default: module.InvoicesPage })));
-const PaymentsPage = lazy(() => import('./pages/PaymentsPage').then(module => ({ default: module.PaymentsPage })));
-const DebtsPage = lazy(() => import('./pages/DebtsPage').then(module => ({ default: module.DebtsPage })));
-const ExpenseInvoicesPage = lazy(() => import('./pages/ExpenseInvoicesPage').then(module => ({ default: module.ExpenseInvoicesPage })));
+const LoginPage = lazy(() =>
+  import("./pages/LoginPage").then((module) => ({ default: module.LoginPage }))
+);
+const HomePage = lazy(() =>
+  import("./pages/HomePage").then((module) => ({ default: module.HomePage }))
+);
+const ClientsPage = lazy(() =>
+  import("./pages/ClientsPage").then((module) => ({
+    default: module.ClientsPage,
+  }))
+);
+const ClientProfilePage = lazy(() =>
+  import("./pages/ClientProfilePage").then((module) => ({
+    default: module.ClientProfilePage,
+  }))
+);
+const InvoicesPage = lazy(() =>
+  import("./pages/InvoicesPage").then((module) => ({
+    default: module.InvoicesPage,
+  }))
+);
+const PaymentsPage = lazy(() =>
+  import("./pages/PaymentsPage").then((module) => ({
+    default: module.PaymentsPage,
+  }))
+);
+const DebtsPage = lazy(() =>
+  import("./pages/DebtsPage").then((module) => ({ default: module.DebtsPage }))
+);
+const ExpenseInvoicesPage = lazy(() =>
+  import("./pages/ExpenseInvoicesPage").then((module) => ({
+    default: module.ExpenseInvoicesPage,
+  }))
+);
 
 // Create QueryClient with optimized settings
 const queryClient = new QueryClient({
@@ -34,10 +65,10 @@ const queryClient = new QueryClient({
 const LoadingFallback = () => (
   <Box
     sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "100vh",
     }}
   >
     <CircularProgress />
@@ -47,7 +78,8 @@ const LoadingFallback = () => (
 function App() {
   const themeMode = useThemeStore((state) => state.mode);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const { initialized, initializeData, subscribeToRealtimeUpdates } = useDataStore();
+  const { initialized, initializeData, subscribeToRealtimeUpdates } =
+    useDataStore();
 
   // Memoize theme to prevent unnecessary recalculations
   const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
@@ -55,17 +87,28 @@ function App() {
   // Initialize data when user is authenticated
   useEffect(() => {
     if (isAuthenticated && !initialized) {
-      initializeData();
-      
-      // Subscribe to real-time updates
-      const unsubscribe = subscribeToRealtimeUpdates();
-      
-      // Cleanup on unmount
-      return () => {
-        // Cleanup function
-      };
+      initializeData().then(() => {
+        // Subscribe to real-time updates after data is initialized
+        subscribeToRealtimeUpdates();
+      });
     }
-  }, [isAuthenticated, initialized, initializeData, subscribeToRealtimeUpdates]);
+
+    // Cleanup on unmount or when user logs out
+    return () => {
+      if (!isAuthenticated) {
+        const { unsubscribeFunctions } = useDataStore.getState();
+        if (unsubscribeFunctions) {
+          unsubscribeFunctions();
+          useDataStore.setState({ unsubscribeFunctions: null });
+        }
+      }
+    };
+  }, [
+    isAuthenticated,
+    initialized,
+    initializeData,
+    subscribeToRealtimeUpdates,
+  ]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -95,7 +138,7 @@ function App() {
                 path="/clients"
                 element={
                   <ProtectedRoute>
-                      <ClientsPage />
+                    <ClientsPage />
                   </ProtectedRoute>
                 }
               />
@@ -103,7 +146,7 @@ function App() {
                 path="/clients/:clientId"
                 element={
                   <ProtectedRoute>
-                      <ClientProfilePage />
+                    <ClientProfilePage />
                   </ProtectedRoute>
                 }
               />
@@ -111,7 +154,7 @@ function App() {
                 path="/invoices"
                 element={
                   <ProtectedRoute>
-                      <InvoicesPage />
+                    <InvoicesPage />
                   </ProtectedRoute>
                 }
               />
@@ -119,7 +162,7 @@ function App() {
                 path="/payments"
                 element={
                   <ProtectedRoute>
-                      <PaymentsPage />
+                    <PaymentsPage />
                   </ProtectedRoute>
                 }
               />
@@ -127,7 +170,7 @@ function App() {
                 path="/debts"
                 element={
                   <ProtectedRoute>
-                      <DebtsPage />
+                    <DebtsPage />
                   </ProtectedRoute>
                 }
               />
@@ -135,7 +178,7 @@ function App() {
                 path="/expense-invoices"
                 element={
                   <ProtectedRoute>
-                      <ExpenseInvoicesPage />
+                    <ExpenseInvoicesPage />
                   </ProtectedRoute>
                 }
               />

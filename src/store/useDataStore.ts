@@ -1,6 +1,15 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { Client, Invoice, Payment, Debt, Project, Expense, StandaloneDebt, ExpenseInvoice } from '../types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type {
+  Client,
+  Invoice,
+  Payment,
+  Debt,
+  Project,
+  Expense,
+  StandaloneDebt,
+  ExpenseInvoice,
+} from "../types";
 import {
   clientsService,
   invoicesService,
@@ -11,7 +20,7 @@ import {
   standaloneDebtsService,
   expenseInvoicesService,
   closeExpensesAndCreateInvoice as closeExpensesAndCreateInvoiceService,
-} from '../services/firebaseService';
+} from "../services/firebaseService";
 
 interface DataState {
   // Data
@@ -23,13 +32,14 @@ interface DataState {
   expenses: Expense[];
   standaloneDebts: StandaloneDebt[];
   expenseInvoices: ExpenseInvoice[];
-  
+
   // Loading states
   isLoading: boolean;
   error: string | null;
 
   // Initialization
   initialized: boolean;
+  unsubscribeFunctions: (() => void) | null;
   initializeData: () => Promise<void>;
   subscribeToRealtimeUpdates: () => void;
 
@@ -71,12 +81,21 @@ interface DataState {
 
   // Standalone Debt operations
   addStandaloneDebt: (debt: StandaloneDebt) => Promise<void>;
-  updateStandaloneDebt: (id: string, data: Partial<StandaloneDebt>) => Promise<void>;
+  updateStandaloneDebt: (
+    id: string,
+    data: Partial<StandaloneDebt>
+  ) => Promise<void>;
   deleteStandaloneDebt: (id: string) => Promise<void>;
   setStandaloneDebts: (debts: StandaloneDebt[]) => void;
 
   // Expense Invoice operations
-  closeExpensesAndCreateInvoice: (expenseIds: string[], clientId: string, startDate: string, endDate: string, notes?: string) => Promise<string>;
+  closeExpensesAndCreateInvoice: (
+    expenseIds: string[],
+    clientId: string,
+    startDate: string,
+    endDate: string,
+    notes?: string
+  ) => Promise<string>;
   getExpenseInvoices: (clientId?: string) => ExpenseInvoice[];
   setExpenseInvoices: (invoices: ExpenseInvoice[]) => void;
 
@@ -99,13 +118,23 @@ export const useDataStore = create<DataState>()(
       isLoading: false,
       error: null,
       initialized: false,
+      unsubscribeFunctions: null,
 
       // Initialize data from Firebase
       initializeData: async () => {
         try {
           set({ isLoading: true, error: null });
 
-          const [clients, invoices, payments, debts, projects, expenses, standaloneDebts, expenseInvoices] = await Promise.all([
+          const [
+            clients,
+            invoices,
+            payments,
+            debts,
+            projects,
+            expenses,
+            standaloneDebts,
+            expenseInvoices,
+          ] = await Promise.all([
             clientsService.getAll(),
             invoicesService.getAll(),
             paymentsService.getAll(),
@@ -129,9 +158,9 @@ export const useDataStore = create<DataState>()(
             initialized: true,
           });
         } catch (error: any) {
-          console.error('Error initializing data:', error);
+          console.error("Error initializing data:", error);
           set({
-            error: 'حدث خطأ أثناء تحميل البيانات',
+            error: "حدث خطأ أثناء تحميل البيانات",
             isLoading: false,
           });
         }
@@ -139,6 +168,12 @@ export const useDataStore = create<DataState>()(
 
       // Subscribe to real-time updates
       subscribeToRealtimeUpdates: () => {
+        // Clean up existing subscriptions first
+        const { unsubscribeFunctions } = get();
+        if (unsubscribeFunctions) {
+          unsubscribeFunctions();
+        }
+
         const unsubscribeClients = clientsService.subscribe((clients) => {
           set({ clients });
         });
@@ -148,6 +183,11 @@ export const useDataStore = create<DataState>()(
         });
 
         const unsubscribePayments = paymentsService.subscribe((payments) => {
+          console.log(
+            "Payments subscription updated:",
+            payments.length,
+            "payments"
+          );
           set({ payments });
         });
 
@@ -160,19 +200,28 @@ export const useDataStore = create<DataState>()(
         });
 
         const unsubscribeExpenses = expensesService.subscribe((expenses) => {
+          console.log(
+            "Expenses subscription updated:",
+            expenses.length,
+            "expenses"
+          );
           set({ expenses });
         });
 
-        const unsubscribeStandaloneDebts = standaloneDebtsService.subscribe((standaloneDebts) => {
-          set({ standaloneDebts });
-        });
+        const unsubscribeStandaloneDebts = standaloneDebtsService.subscribe(
+          (standaloneDebts) => {
+            set({ standaloneDebts });
+          }
+        );
 
-        const unsubscribeExpenseInvoices = expenseInvoicesService.subscribe((expenseInvoices) => {
-          set({ expenseInvoices });
-        });
+        const unsubscribeExpenseInvoices = expenseInvoicesService.subscribe(
+          (expenseInvoices) => {
+            set({ expenseInvoices });
+          }
+        );
 
-        // Return cleanup function
-        return () => {
+        // Store cleanup function
+        const cleanup = () => {
           unsubscribeClients();
           unsubscribeInvoices();
           unsubscribePayments();
@@ -182,6 +231,8 @@ export const useDataStore = create<DataState>()(
           unsubscribeStandaloneDebts();
           unsubscribeExpenseInvoices();
         };
+
+        set({ unsubscribeFunctions: cleanup });
       },
 
       // Client operations
@@ -192,8 +243,8 @@ export const useDataStore = create<DataState>()(
           // لا نضيف للـ state محلياً - سيأتي من Firebase تلقائياً
           set({ isLoading: false });
         } catch (error) {
-          console.error('Error adding client:', error);
-          set({ error: 'حدث خطأ أثناء إضافة العميل', isLoading: false });
+          console.error("Error adding client:", error);
+          set({ error: "حدث خطأ أثناء إضافة العميل", isLoading: false });
           throw error;
         }
       },
@@ -203,12 +254,14 @@ export const useDataStore = create<DataState>()(
           set({ isLoading: true });
           await clientsService.update(id, data);
           set((state) => ({
-            clients: state.clients.map((c) => (c.id === id ? { ...c, ...data } : c)),
+            clients: state.clients.map((c) =>
+              c.id === id ? { ...c, ...data } : c
+            ),
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error updating client:', error);
-          set({ error: 'حدث خطأ أثناء تحديث العميل', isLoading: false });
+          console.error("Error updating client:", error);
+          set({ error: "حدث خطأ أثناء تحديث العميل", isLoading: false });
           throw error;
         }
       },
@@ -222,8 +275,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error deleting client:', error);
-          set({ error: 'حدث خطأ أثناء حذف العميل', isLoading: false });
+          console.error("Error deleting client:", error);
+          set({ error: "حدث خطأ أثناء حذف العميل", isLoading: false });
           throw error;
         }
       },
@@ -248,15 +301,15 @@ export const useDataStore = create<DataState>()(
             totalAmount: invoice.total,
             paidAmount: 0,
             remainingAmount: invoice.total,
-            status: 'unpaid',
+            status: "unpaid",
             dueDate: invoice.dueDate,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
           await get().addDebt(debt);
         } catch (error) {
-          console.error('Error adding invoice:', error);
-          set({ error: 'حدث خطأ أثناء إضافة الفاتورة', isLoading: false });
+          console.error("Error adding invoice:", error);
+          set({ error: "حدث خطأ أثناء إضافة الفاتورة", isLoading: false });
           throw error;
         }
       },
@@ -266,12 +319,14 @@ export const useDataStore = create<DataState>()(
           set({ isLoading: true });
           await invoicesService.update(id, data);
           set((state) => ({
-            invoices: state.invoices.map((i) => (i.id === id ? { ...i, ...data } : i)),
+            invoices: state.invoices.map((i) =>
+              i.id === id ? { ...i, ...data } : i
+            ),
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error updating invoice:', error);
-          set({ error: 'حدث خطأ أثناء تحديث الفاتورة', isLoading: false });
+          console.error("Error updating invoice:", error);
+          set({ error: "حدث خطأ أثناء تحديث الفاتورة", isLoading: false });
           throw error;
         }
       },
@@ -285,8 +340,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error deleting invoice:', error);
-          set({ error: 'حدث خطأ أثناء حذف الفاتورة', isLoading: false });
+          console.error("Error deleting invoice:", error);
+          set({ error: "حدث خطأ أثناء حذف الفاتورة", isLoading: false });
           throw error;
         }
       },
@@ -302,16 +357,18 @@ export const useDataStore = create<DataState>()(
           set({ isLoading: false });
 
           // Update associated debt
-          const debt = get().debts.find((d) => d.invoiceId === payment.invoiceId);
+          const debt = get().debts.find(
+            (d) => d.invoiceId === payment.invoiceId
+          );
           if (debt) {
             const newPaidAmount = debt.paidAmount + payment.amount;
             const newRemainingAmount = debt.totalAmount - newPaidAmount;
             const newStatus =
               newRemainingAmount <= 0
-                ? 'paid'
+                ? "paid"
                 : newRemainingAmount < debt.totalAmount
-                ? 'partially_paid'
-                : 'unpaid';
+                ? "partially_paid"
+                : "unpaid";
 
             await get().updateDebt(debt.id, {
               paidAmount: newPaidAmount,
@@ -321,24 +378,27 @@ export const useDataStore = create<DataState>()(
           }
 
           // Update invoice status
-          const invoice = get().invoices.find((i) => i.id === payment.invoiceId);
+          const invoice = get().invoices.find(
+            (i) => i.id === payment.invoiceId
+          );
           if (invoice) {
-            const totalPaid = get()
-              .payments.filter((p) => p.invoiceId === payment.invoiceId)
-              .reduce((sum, p) => sum + p.amount, 0) + payment.amount;
+            const totalPaid =
+              get()
+                .payments.filter((p) => p.invoiceId === payment.invoiceId)
+                .reduce((sum, p) => sum + p.amount, 0) + payment.amount;
 
             const newStatus =
               totalPaid >= invoice.total
-                ? 'paid'
+                ? "paid"
                 : totalPaid > 0
-                ? 'partially_paid'
+                ? "partially_paid"
                 : invoice.status;
 
             await get().updateInvoice(invoice.id, { status: newStatus });
           }
         } catch (error) {
-          console.error('Error adding payment:', error);
-          set({ error: 'حدث خطأ أثناء إضافة الدفعة', isLoading: false });
+          console.error("Error adding payment:", error);
+          set({ error: "حدث خطأ أثناء إضافة الدفعة", isLoading: false });
           throw error;
         }
       },
@@ -347,28 +407,28 @@ export const useDataStore = create<DataState>()(
         try {
           set({ isLoading: true });
           await paymentsService.update(id, data);
-          set((state) => ({
-            payments: state.payments.map((p) => (p.id === id ? { ...p, ...data } : p)),
-            isLoading: false,
-          }));
+          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+          set({ isLoading: false });
         } catch (error) {
-          console.error('Error updating payment:', error);
-          set({ error: 'حدث خطأ أثناء تحديث الدفعة', isLoading: false });
+          console.error("Error updating payment:", error);
+          set({ error: "حدث خطأ أثناء تحديث الدفعة", isLoading: false });
           throw error;
         }
       },
 
       deletePayment: async (id: string) => {
         try {
+          console.log("deletePayment called with id:", id);
           set({ isLoading: true });
           await paymentsService.delete(id);
-          set((state) => ({
-            payments: state.payments.filter((p) => p.id !== id),
-            isLoading: false,
-          }));
+          console.log(
+            "Payment deleted from Firebase, waiting for subscription update..."
+          );
+          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+          set({ isLoading: false });
         } catch (error) {
-          console.error('Error deleting payment:', error);
-          set({ error: 'حدث خطأ أثناء حذف الدفعة', isLoading: false });
+          console.error("Error deleting payment:", error);
+          set({ error: "حدث خطأ أثناء حذف الدفعة", isLoading: false });
           throw error;
         }
       },
@@ -385,8 +445,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error adding debt:', error);
-          set({ error: 'حدث خطأ أثناء إضافة الدين', isLoading: false });
+          console.error("Error adding debt:", error);
+          set({ error: "حدث خطأ أثناء إضافة الدين", isLoading: false });
           throw error;
         }
       },
@@ -396,12 +456,14 @@ export const useDataStore = create<DataState>()(
           set({ isLoading: true });
           await debtsService.update(id, data);
           set((state) => ({
-            debts: state.debts.map((d) => (d.id === id ? { ...d, ...data } : d)),
+            debts: state.debts.map((d) =>
+              d.id === id ? { ...d, ...data } : d
+            ),
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error updating debt:', error);
-          set({ error: 'حدث خطأ أثناء تحديث الدين', isLoading: false });
+          console.error("Error updating debt:", error);
+          set({ error: "حدث خطأ أثناء تحديث الدين", isLoading: false });
           throw error;
         }
       },
@@ -415,8 +477,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error deleting debt:', error);
-          set({ error: 'حدث خطأ أثناء حذف الدين', isLoading: false });
+          console.error("Error deleting debt:", error);
+          set({ error: "حدث خطأ أثناء حذف الدين", isLoading: false });
           throw error;
         }
       },
@@ -433,8 +495,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error adding project:', error);
-          set({ error: 'حدث خطأ أثناء إضافة المشروع', isLoading: false });
+          console.error("Error adding project:", error);
+          set({ error: "حدث خطأ أثناء إضافة المشروع", isLoading: false });
           throw error;
         }
       },
@@ -444,12 +506,14 @@ export const useDataStore = create<DataState>()(
           set({ isLoading: true });
           await projectsService.update(id, data);
           set((state) => ({
-            projects: state.projects.map((p) => (p.id === id ? { ...p, ...data } : p)),
+            projects: state.projects.map((p) =>
+              p.id === id ? { ...p, ...data } : p
+            ),
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error updating project:', error);
-          set({ error: 'حدث خطأ أثناء تحديث المشروع', isLoading: false });
+          console.error("Error updating project:", error);
+          set({ error: "حدث خطأ أثناء تحديث المشروع", isLoading: false });
           throw error;
         }
       },
@@ -463,8 +527,8 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error deleting project:', error);
-          set({ error: 'حدث خطأ أثناء حذف المشروع', isLoading: false });
+          console.error("Error deleting project:", error);
+          set({ error: "حدث خطأ أثناء حذف المشروع", isLoading: false });
           throw error;
         }
       },
@@ -483,8 +547,8 @@ export const useDataStore = create<DataState>()(
           // لا نضيف للـ state محلياً - سيأتي من Firebase تلقائياً
           set({ isLoading: false });
         } catch (error) {
-          console.error('Error adding expense:', error);
-          set({ error: 'حدث خطأ أثناء إضافة المصروف', isLoading: false });
+          console.error("Error adding expense:", error);
+          set({ error: "حدث خطأ أثناء إضافة المصروف", isLoading: false });
           throw error;
         }
       },
@@ -493,28 +557,28 @@ export const useDataStore = create<DataState>()(
         try {
           set({ isLoading: true });
           await expensesService.update(id, data);
-          set((state) => ({
-            expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...data } : e)),
-            isLoading: false,
-          }));
+          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+          set({ isLoading: false });
         } catch (error) {
-          console.error('Error updating expense:', error);
-          set({ error: 'حدث خطأ أثناء تحديث المصروف', isLoading: false });
+          console.error("Error updating expense:", error);
+          set({ error: "حدث خطأ أثناء تحديث المصروف", isLoading: false });
           throw error;
         }
       },
 
       deleteExpense: async (id: string) => {
         try {
+          console.log("deleteExpense called with id:", id);
           set({ isLoading: true });
           await expensesService.delete(id);
-          set((state) => ({
-            expenses: state.expenses.filter((e) => e.id !== id),
-            isLoading: false,
-          }));
+          console.log(
+            "Expense deleted from Firebase, waiting for subscription update..."
+          );
+          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+          set({ isLoading: false });
         } catch (error) {
-          console.error('Error deleting expense:', error);
-          set({ error: 'حدث خطأ أثناء حذف المصروف', isLoading: false });
+          console.error("Error deleting expense:", error);
+          set({ error: "حدث خطأ أثناء حذف المصروف", isLoading: false });
           throw error;
         }
       },
@@ -529,23 +593,28 @@ export const useDataStore = create<DataState>()(
           // لا نضيف للـ state محلياً - سيأتي من Firebase تلقائياً
           set({ isLoading: false });
         } catch (error) {
-          console.error('Error adding debt:', error);
-          set({ error: 'حدث خطأ أثناء إضافة الدين', isLoading: false });
+          console.error("Error adding debt:", error);
+          set({ error: "حدث خطأ أثناء إضافة الدين", isLoading: false });
           throw error;
         }
       },
 
-      updateStandaloneDebt: async (id: string, data: Partial<StandaloneDebt>) => {
+      updateStandaloneDebt: async (
+        id: string,
+        data: Partial<StandaloneDebt>
+      ) => {
         try {
           set({ isLoading: true });
           await standaloneDebtsService.update(id, data);
           set((state) => ({
-            standaloneDebts: state.standaloneDebts.map((d) => (d.id === id ? { ...d, ...data } : d)),
+            standaloneDebts: state.standaloneDebts.map((d) =>
+              d.id === id ? { ...d, ...data } : d
+            ),
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error updating debt:', error);
-          set({ error: 'حدث خطأ أثناء تحديث الدين', isLoading: false });
+          console.error("Error updating debt:", error);
+          set({ error: "حدث خطأ أثناء تحديث الدين", isLoading: false });
           throw error;
         }
       },
@@ -559,24 +628,40 @@ export const useDataStore = create<DataState>()(
             isLoading: false,
           }));
         } catch (error) {
-          console.error('Error deleting debt:', error);
-          set({ error: 'حدث خطأ أثناء حذف الدين', isLoading: false });
+          console.error("Error deleting debt:", error);
+          set({ error: "حدث خطأ أثناء حذف الدين", isLoading: false });
           throw error;
         }
       },
 
-      setStandaloneDebts: (standaloneDebts: StandaloneDebt[]) => set({ standaloneDebts }),
+      setStandaloneDebts: (standaloneDebts: StandaloneDebt[]) =>
+        set({ standaloneDebts }),
 
       // Expense Invoice operations
-      closeExpensesAndCreateInvoice: async (expenseIds: string[], clientId: string, startDate: string, endDate: string, notes?: string) => {
+      closeExpensesAndCreateInvoice: async (
+        expenseIds: string[],
+        clientId: string,
+        startDate: string,
+        endDate: string,
+        notes?: string
+      ) => {
         try {
           set({ isLoading: true });
-          const invoiceId = await closeExpensesAndCreateInvoiceService(expenseIds, clientId, startDate, endDate, notes);
+          const invoiceId = await closeExpensesAndCreateInvoiceService(
+            expenseIds,
+            clientId,
+            startDate,
+            endDate,
+            notes
+          );
           set({ isLoading: false });
           return invoiceId;
         } catch (error) {
-          console.error('Error closing expenses and creating invoice:', error);
-          set({ error: 'حدث خطأ أثناء إغلاق المصروفات وإنشاء الفاتورة', isLoading: false });
+          console.error("Error closing expenses and creating invoice:", error);
+          set({
+            error: "حدث خطأ أثناء إغلاق المصروفات وإنشاء الفاتورة",
+            isLoading: false,
+          });
           throw error;
         }
       },
@@ -589,13 +674,14 @@ export const useDataStore = create<DataState>()(
         return invoices;
       },
 
-      setExpenseInvoices: (expenseInvoices: ExpenseInvoice[]) => set({ expenseInvoices }),
+      setExpenseInvoices: (expenseInvoices: ExpenseInvoice[]) =>
+        set({ expenseInvoices }),
 
       // Utility
       clearError: () => set({ error: null }),
     }),
     {
-      name: 'data-storage',
+      name: "data-storage",
       partialize: (state) => ({
         // Only persist data, not loading states
         clients: state.clients,
@@ -609,4 +695,3 @@ export const useDataStore = create<DataState>()(
     }
   )
 );
-

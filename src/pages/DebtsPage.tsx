@@ -103,18 +103,18 @@ export const DebtsPage = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" fontWeight={700}>
           الديون
         </Typography>
       </Box>
 
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 5 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ borderLeft: 4, borderColor: 'primary.main' }}>
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 1.5 }}>
                 إجمالي الديون
               </Typography>
               <Typography variant="h5" fontWeight={700}>
@@ -164,9 +164,9 @@ export const DebtsPage = () => {
         </Grid>
       </Grid>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Grid container spacing={2}>
+      <Card sx={{ mb: 5 }}>
+        <CardContent sx={{ p: 3.5 }}>
+          <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
               <TextField
                 fullWidth

@@ -87,9 +87,9 @@ export const Layout = ({ children }: LayoutProps) => {
         </Typography>
       </Toolbar>
       <Divider />
-      <List>
+      <List sx={{ px: 1, py: 2 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               selected={location.pathname === item.path}
               onClick={() => {
@@ -97,6 +97,9 @@ export const Layout = ({ children }: LayoutProps) => {
                 if (isMobile) setMobileOpen(false);
               }}
               sx={{
+                borderRadius: 2,
+                mx: 1,
+                py: 1.5,
                 '&.Mui-selected': {
                   backgroundColor: theme.palette.primary.main,
                   color: theme.palette.primary.contrastText,
@@ -114,6 +117,8 @@ export const Layout = ({ children }: LayoutProps) => {
                   color: location.pathname === item.path 
                     ? theme.palette.primary.contrastText 
                     : 'inherit',
+                  minWidth: 44,
+                  marginLeft: '8px',
                 }}
               >
                 {item.icon}
@@ -140,7 +145,7 @@ export const Layout = ({ children }: LayoutProps) => {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ marginLeft: '16px', display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
@@ -149,11 +154,11 @@ export const Layout = ({ children }: LayoutProps) => {
             نظام إدارة الديون والفواتير
           </Typography>
 
-          <IconButton color="inherit" onClick={toggleTheme} sx={{ mr: 1 }}>
+          <IconButton color="inherit" onClick={toggleTheme} sx={{ marginLeft: '8px' }}>
             {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
           </IconButton>
 
-          <IconButton color="inherit" onClick={handleMenuClick}>
+          <IconButton color="inherit" onClick={handleMenuClick} sx={{ marginLeft: '8px' }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
               {user?.displayName?.charAt(0) || user?.email.charAt(0).toUpperCase()}
             </Avatar>
@@ -169,12 +174,12 @@ export const Layout = ({ children }: LayoutProps) => {
             }}
           >
             <MenuItem disabled>
-              <AccountCircle sx={{ mr: 1 }} />
+              <AccountCircle sx={{ marginLeft: '8px' }} />
               {user?.displayName || user?.email}
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
-              <Logout sx={{ mr: 1 }} />
+              <Logout sx={{ marginLeft: '8px' }} />
               تسجيل الخروج
             </MenuItem>
           </Menu>
@@ -221,7 +226,7 @@ export const Layout = ({ children }: LayoutProps) => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 2, md: 4 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
           mt: 8,
         }}

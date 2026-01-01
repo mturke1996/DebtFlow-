@@ -171,7 +171,7 @@ export const ClientsPage = () => {
       >
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <IconButton onClick={() => navigate('/')} sx={{ color: 'white' }}>
+            <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
               <ArrowBack />
             </IconButton>
             <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
@@ -201,6 +201,7 @@ export const ClientsPage = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             sx={{
+              mt: 2,
               '& .MuiOutlinedInput-root': {
                 bgcolor: 'white',
                 borderRadius: 2.5,
@@ -220,7 +221,7 @@ export const ClientsPage = () => {
 
       {/* Clients List */}
       <Container maxWidth="sm" sx={{ mt: -2 }}>
-        <Stack spacing={1.5}>
+        <Stack spacing={3.5}>
           {filteredClients.length === 0 ? (
             <Card sx={{ borderRadius: 2.5, textAlign: 'center', py: 6, bgcolor: 'background.paper' }}>
               <People sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.3, mb: 2 }} />
@@ -263,14 +264,16 @@ export const ClientsPage = () => {
                     },
                   }}
                 >
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack direction="row" alignItems="center" spacing={0}>
                       {/* Avatar */}
                       <Avatar
                         sx={{
-                          width: 40,
-                          height: 40,
+                          width: 48,
+                          height: 48,
                           bgcolor: client.type === 'company' ? 'primary.light' : 'secondary.light',
+                          flexShrink: 0,
+                          marginLeft: '24px',
                         }}
                       >
                         {client.type === 'company' ? (
@@ -282,7 +285,7 @@ export const ClientsPage = () => {
 
                       {/* Client Info */}
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
                           <Typography variant="body2" fontWeight={700} noWrap>
                             {client.name}
                           </Typography>
@@ -291,20 +294,22 @@ export const ClientsPage = () => {
                             size="small"
                             color={client.type === 'company' ? 'primary' : 'secondary'}
                             variant="outlined"
-                            sx={{ height: 18, fontSize: '0.6rem' }}
+                            sx={{ height: 20, fontSize: '0.65rem' }}
                           />
                         </Stack>
                         
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
                           {client.phone}
                         </Typography>
 
                         {/* Remaining Balance */}
-                        <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Stack direction="row" alignItems="center" spacing={0} sx={{ mt: 1 }}>
                           <AccountBalance 
                             sx={{ 
                               color: hasDebt ? 'error.main' : 'success.main',
-                              fontSize: 16,
+                              fontSize: 18,
+                              marginLeft: '16px',
+                              flexShrink: 0,
                             }} 
                           />
                           <Typography 
@@ -318,7 +323,9 @@ export const ClientsPage = () => {
                       </Box>
 
                       {/* Arrow */}
-                      <ChevronLeft sx={{ color: 'text.secondary', fontSize: 20 }} />
+                      <Box sx={{ marginLeft: '24px', flexShrink: 0 }}>
+                        <ChevronLeft sx={{ color: 'text.secondary', fontSize: 24 }} />
+                      </Box>
                     </Stack>
                   </CardContent>
                 </Card>
@@ -359,8 +366,8 @@ export const ClientsPage = () => {
             </Stack>
           </Box>
 
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={2}>
+          <Box sx={{ p: 3.5 }}>
+            <Stack spacing={3}>
               <Controller
                 name="name"
                 control={control}
@@ -439,7 +446,7 @@ export const ClientsPage = () => {
               />
             </Stack>
 
-            <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ mt: 5 }}>
               <Button
                 onClick={handleCloseDialog}
                 fullWidth

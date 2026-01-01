@@ -122,8 +122,8 @@ export const ExpenseInvoicesPage = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Stack direction="row" alignItems="center" spacing={2} mb={3}>
-        <IconButton onClick={() => navigate(-1)}>
+      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
+        <IconButton onClick={() => navigate(-1)} sx={{ marginLeft: '8px' }}>
           <ArrowBack />
         </IconButton>
         <Typography variant="h4" fontWeight="bold">
@@ -183,12 +183,16 @@ export const ExpenseInvoicesPage = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={1.5}>
                         <IconButton
                           size="small"
                           color="primary"
                           onClick={() => handlePreview(invoice)}
                           title="معاينة"
+                          sx={{
+                            width: 38,
+                            height: 38,
+                          }}
                         >
                           <Visibility />
                         </IconButton>
@@ -197,6 +201,10 @@ export const ExpenseInvoicesPage = () => {
                           color="error"
                           onClick={() => handleViewPDF(invoice)}
                           title="PDF"
+                          sx={{
+                            width: 38,
+                            height: 38,
+                          }}
                         >
                           <PictureAsPdf />
                         </IconButton>
@@ -205,6 +213,10 @@ export const ExpenseInvoicesPage = () => {
                           color="success"
                           onClick={() => handleShareWhatsApp(invoice)}
                           title="واتساب"
+                          sx={{
+                            width: 38,
+                            height: 38,
+                          }}
                         >
                           <WhatsApp />
                         </IconButton>

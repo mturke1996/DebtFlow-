@@ -6,22 +6,51 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // السماح للمستخدمين المصرحين فقط بالقراءة والكتابة
+    // قواعد عامة - السماح للمستخدمين المسجلين بالقراءة والكتابة والحذف
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write, delete: if isAuthenticated();
     }
 
-    // يمكنك إضافة قواعد أكثر تحديداً هنا:
-    
-    // مثال: العملاء
-    // match /clients/{clientId} {
-    //   allow read, write: if isAuthenticated();
-    // }
+    // قواعد محددة للمجموعات المختلفة
+    // العملاء
+    match /clients/{clientId} {
+      allow read, write, delete: if isAuthenticated();
+    }
 
-    // مثال: الفواتير
-    // match /invoices/{invoiceId} {
-    //   allow read, write: if isAuthenticated();
-    // }
+    // الفواتير
+    match /invoices/{invoiceId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // المدفوعات
+    match /payments/{paymentId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // الديون
+    match /debts/{debtId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // المصروفات
+    match /expenses/{expenseId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // الديون المستقلة
+    match /standaloneDebts/{debtId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // فواتير المصروفات
+    match /expenseInvoices/{invoiceId} {
+      allow read, write, delete: if isAuthenticated();
+    }
+
+    // المشاريع
+    match /projects/{projectId} {
+      allow read, write, delete: if isAuthenticated();
+    }
   }
 }
 

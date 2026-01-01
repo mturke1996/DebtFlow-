@@ -124,6 +124,14 @@ export const createAppTheme = (mode: ThemeMode) => {
             borderRadius: 8,
             padding: '8px 24px',
             boxShadow: 'none',
+            '& .MuiButton-startIcon': {
+              marginRight: '8px',
+              marginLeft: 0,
+            },
+            '& .MuiButton-endIcon': {
+              marginLeft: '8px',
+              marginRight: 0,
+            },
             '&:hover': {
               boxShadow: 'none',
             },
@@ -133,6 +141,24 @@ export const createAppTheme = (mode: ThemeMode) => {
               transform: 'translateY(-2px)',
               transition: 'transform 0.2s',
             },
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            padding: '12px',
+            margin: '4px',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            },
+          },
+        },
+      },
+      MuiSvgIcon: {
+        styleOverrides: {
+          root: {
+            margin: '4px',
           },
         },
       },

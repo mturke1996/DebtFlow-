@@ -94,7 +94,7 @@ export const DashboardPage = () => {
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
             <Stack direction="row" alignItems="center" spacing={2}>
-              <IconButton onClick={() => navigate('/')} sx={{ color: 'white' }}>
+              <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
                 <ArrowBack />
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ color: 'white' }}>
@@ -108,9 +108,9 @@ export const DashboardPage = () => {
         </Container>
       </Box>
 
-      <Container maxWidth="sm" sx={{ mt: -1 }}>
+      <Container maxWidth="sm" sx={{ mt: -2 }}>
         {/* Stats Cards */}
-        <Grid container spacing={1.5} sx={{ mb: 3 }}>
+        <Grid container spacing={3} sx={{ mb: 5 }}>
           <Grid item xs={6}>
             <Card
               sx={{
@@ -120,9 +120,9 @@ export const DashboardPage = () => {
                 boxShadow: '0 4px 12px rgba(239,68,68,0.3)',
               }}
             >
-              <CardContent sx={{ p: 2 }}>
-                <AccountBalance sx={{ fontSize: 28, mb: 1 }} />
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
+              <CardContent sx={{ p: 3 }}>
+                <AccountBalance sx={{ fontSize: 28, mb: 2 }} />
+                <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', mb: 1.5 }}>
                   إجمالي الديون
                 </Typography>
                 <Typography variant="h6" fontWeight={800}>
@@ -197,12 +197,12 @@ export const DashboardPage = () => {
         </Grid>
 
         {/* Quick Info */}
-        <Grid container spacing={1.5} sx={{ mb: 3 }}>
+        <Grid container spacing={3} sx={{ mb: 5 }}>
           <Grid item xs={4}>
-            <Card sx={{ borderRadius: 2.5, textAlign: 'center' }}>
-              <CardContent sx={{ p: 2 }}>
-                <People sx={{ fontSize: 32, color: 'primary.main', mb: 0.5 }} />
-                <Typography variant="h5" fontWeight={800}>
+            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
+              <CardContent sx={{ p: 3 }}>
+                <People sx={{ fontSize: 32, color: 'primary.main', mb: 1.5 }} />
+                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
                   {clients.length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -212,10 +212,12 @@ export const DashboardPage = () => {
             </Card>
           </Grid>
           <Grid item xs={4}>
-            <Card sx={{ borderRadius: 2.5, textAlign: 'center' }}>
-              <CardContent sx={{ p: 2 }}>
-                <Receipt sx={{ fontSize: 32, color: 'success.main', mb: 0.5 }} />
-                <Typography variant="h5" fontWeight={800}>
+            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+                  <Receipt sx={{ fontSize: 32, color: 'success.main' }} />
+                </Box>
+                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
                   {invoices.length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -225,10 +227,12 @@ export const DashboardPage = () => {
             </Card>
           </Grid>
           <Grid item xs={4}>
-            <Card sx={{ borderRadius: 2.5, textAlign: 'center' }}>
-              <CardContent sx={{ p: 2 }}>
-                <AccountBalance sx={{ fontSize: 32, color: 'warning.main', mb: 0.5 }} />
-                <Typography variant="h5" fontWeight={800}>
+            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+                  <AccountBalance sx={{ fontSize: 32, color: 'warning.main' }} />
+                </Box>
+                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
                   {debts.filter((d) => d.status !== 'paid').length}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -240,16 +244,16 @@ export const DashboardPage = () => {
         </Grid>
 
         {/* Top Debtors */}
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5, px: 0.5 }}>
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 3, px: 0.5 }}>
           أكبر المدينين
         </Typography>
-        <Card sx={{ mb: 3, borderRadius: 2.5 }}>
-          <CardContent sx={{ p: 2 }}>
-            <Stack spacing={2}>
+        <Card sx={{ mb: 5, borderRadius: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Stack spacing={3}>
               {topDebtors.length > 0 ? (
                 topDebtors.map((item, index) => (
                   <Box key={index}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
                       <Typography variant="body2" fontWeight={700}>
                         {item.client?.name}
                       </Typography>
@@ -282,10 +286,10 @@ export const DashboardPage = () => {
         </Card>
 
         {/* Recent Invoices */}
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 1.5, px: 0.5 }}>
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 3, px: 0.5 }}>
           آخر الفواتير
         </Typography>
-        <Stack spacing={1.5}>
+        <Stack spacing={3.5}>
           {recentInvoices.length > 0 ? (
             recentInvoices.map((invoice) => {
               const client = clients.find((c) => c.id === invoice.clientId);
@@ -298,7 +302,7 @@ export const DashboardPage = () => {
                     border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
                   }}
                 >
-                  <CardContent sx={{ p: 2 }}>
+                  <CardContent sx={{ p: 3 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Box>
                         <Typography variant="body1" fontWeight={700}>

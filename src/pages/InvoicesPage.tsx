@@ -161,7 +161,7 @@ export const InvoicesPage = () => {
       >
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <IconButton onClick={() => navigate('/')} sx={{ color: 'white' }}>
+            <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
               <ArrowBack />
             </IconButton>
             <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
@@ -184,7 +184,7 @@ export const InvoicesPage = () => {
           </Stack>
 
           {/* Search & Filter */}
-          <Stack spacing={1.5}>
+          <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               fullWidth
               placeholder="ابحث عن فاتورة..."
@@ -228,8 +228,8 @@ export const InvoicesPage = () => {
       </Box>
 
       {/* Invoices List */}
-      <Container maxWidth="sm" sx={{ mt: -1 }}>
-        <Stack spacing={1.5}>
+      <Container maxWidth="sm" sx={{ mt: -2 }}>
+        <Stack spacing={3.5}>
           {filteredInvoices.length === 0 ? (
             <Card sx={{ borderRadius: 2.5, textAlign: 'center', py: 6 }}>
               <Receipt sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.3, mb: 2 }} />
@@ -256,8 +256,8 @@ export const InvoicesPage = () => {
                     border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
                   }}
                 >
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1.5 }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2.5 }}>
                       <Box>
                         <Typography variant="body1" fontWeight={700}>
                           {invoice.invoiceNumber}
@@ -289,12 +289,12 @@ export const InvoicesPage = () => {
                       </Stack>
                     </Stack>
                     
-                    <Divider sx={{ my: 1 }} />
+                    <Divider sx={{ my: 2.5 }} />
                     
-                    <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                    <Typography variant="caption" color="text.secondary" gutterBottom display="block" sx={{ mb: 1.5 }}>
                       العناصر:
                     </Typography>
-                    <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+                    <Stack spacing={1.5} sx={{ mb: 2.5 }}>
                       {invoice.items.slice(0, 2).map((item) => (
                         <Stack key={item.id} direction="row" justifyContent="space-between">
                           <Typography variant="caption">
@@ -313,7 +313,7 @@ export const InvoicesPage = () => {
                     </Stack>
 
                     {/* Action Buttons */}
-                    <Stack direction="row" spacing={1} sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Stack direction="row" spacing={2} sx={{ mt: 2.5, pt: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
                       <Button
                         size="small"
                         variant="outlined"
@@ -336,7 +336,12 @@ export const InvoicesPage = () => {
                             generateInvoicePDF(invoice, client);
                           }
                         }}
-                        sx={{ borderRadius: 1.5 }}
+                        sx={{ 
+                          borderRadius: 1.5,
+                          width: 40,
+                          height: 40,
+                          marginLeft: '16px',
+                        }}
                       >
                         <PictureAsPdf fontSize="small" />
                       </IconButton>
@@ -349,7 +354,12 @@ export const InvoicesPage = () => {
                             generateInvoiceWhatsApp(invoice, client);
                           }
                         }}
-                        sx={{ borderRadius: 1.5 }}
+                        sx={{ 
+                          borderRadius: 1.5,
+                          width: 40,
+                          height: 40,
+                          marginLeft: '8px',
+                        }}
                       >
                         <WhatsApp fontSize="small" />
                       </IconButton>
@@ -386,8 +396,8 @@ export const InvoicesPage = () => {
             </Stack>
           </Box>
 
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={2.5}>
+          <Box sx={{ p: 3.5 }}>
+            <Stack spacing={3.5}>
               {/* Client Selection */}
               <Controller
                 name="clientId"
@@ -412,9 +422,9 @@ export const InvoicesPage = () => {
               </Typography>
               
               {fields.map((field, index) => (
-                <Card key={field.id} sx={{ borderRadius: 2, bgcolor: 'action.hover' }}>
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack spacing={2}>
+                <Card key={field.id} sx={{ borderRadius: 2.5, bgcolor: 'action.hover' }}>
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Stack spacing={2.5}>
                       <Controller
                         name={`items.${index}.description`}
                         control={control}
@@ -428,7 +438,7 @@ export const InvoicesPage = () => {
                           />
                         )}
                       />
-                      <Grid container spacing={2}>
+                      <Grid container spacing={2.5}>
                         <Grid item xs={6}>
                           <Controller
                             name={`items.${index}.quantity`}
@@ -572,7 +582,7 @@ export const InvoicesPage = () => {
               </Card>
 
               {/* Buttons */}
-              <Stack direction="row" spacing={2}>
+              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
                 <Button
                   onClick={() => setDialogOpen(false)}
                   fullWidth
@@ -638,7 +648,7 @@ export const InvoicesPage = () => {
                       bgcolor: 'white',
                       color: 'primary.main',
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-                      mr: 1,
+                      marginLeft: '16px',
                     }}
                   >
                     PDF
@@ -659,10 +669,10 @@ export const InvoicesPage = () => {
                 </Stack>
               </Box>
 
-              <Box sx={{ p: 2, overflow: 'auto' }}>
-                <Card sx={{ borderRadius: 2.5, mb: 2 }}>
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack spacing={2}>
+              <Box sx={{ p: 3, overflow: 'auto' }}>
+                <Card sx={{ borderRadius: 3, mb: 3 }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={3}>
                       <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                           رقم الفاتورة
@@ -672,7 +682,7 @@ export const InvoicesPage = () => {
                         </Typography>
                       </Box>
                       
-                      <Grid container spacing={2}>
+                      <Grid container spacing={2.5}>
                         <Grid item xs={12} sm={6}>
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             العميل

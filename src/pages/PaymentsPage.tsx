@@ -24,6 +24,8 @@ import {
   useTheme,
   Divider,
   Avatar,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add,
@@ -61,6 +63,8 @@ export const PaymentsPage = () => {
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const {
     control,
@@ -131,13 +135,15 @@ export const PaymentsPage = () => {
 
       if (editingPayment) {
         await updatePayment(editingPayment.id, {
-          clientId: data.clientId,
+          clientId: data.clientId || '',
           invoiceId: data.invoiceId || '',
           amount: data.amount,
-          paymentMethod: data.paymentMethod,
-          paymentDate: data.paymentDate,
+          paymentMethod: data.paymentMethod || 'cash',
+          paymentDate: data.paymentDate || dayjs().format('YYYY-MM-DD'),
           notes: data.notes || '',
         });
+        setEditingPayment(null);
+        setSnackbarMessage("تم التعديل بنجاح");
       } else {
         const newPayment: Payment = {
           id: crypto.randomUUID(),
@@ -151,10 +157,15 @@ export const PaymentsPage = () => {
           updatedAt: new Date().toISOString(),
         };
         await addPayment(newPayment);
+        setSnackbarMessage("تمت الإضافة بنجاح");
       }
       handleCloseDialog();
-    } catch (error) {
+      setSnackbarOpen(true);
+    } catch (error: any) {
       console.error('Error saving payment:', error);
+      const errorMessage = error?.message || error?.toString() || "حدث خطأ أثناء الحفظ";
+      setSnackbarMessage(errorMessage);
+      setSnackbarOpen(true);
     }
   };
 
@@ -202,7 +213,7 @@ export const PaymentsPage = () => {
       >
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <IconButton onClick={() => navigate('/')} sx={{ color: 'white' }}>
+            <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
               <ArrowBack />
             </IconButton>
             <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
@@ -237,7 +248,7 @@ export const PaymentsPage = () => {
           >
             <CardContent sx={{ py: 2 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Box>
+                <Box sx={{ flexGrow: 1 }}>
                   <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
                     إجمالي المدفوعات
                   </Typography>
@@ -250,6 +261,8 @@ export const PaymentsPage = () => {
                     bgcolor: 'rgba(255,255,255,0.2)',
                     width: 50,
                     height: 50,
+                    flexShrink: 0,
+                    marginLeft: '24px',
                   }}
                 >
                   <PaymentIcon sx={{ fontSize: 28 }} />
@@ -259,7 +272,7 @@ export const PaymentsPage = () => {
           </Card>
 
           {/* Search & Filter */}
-          <Stack spacing={1.5} sx={{ mt: 2 }}>
+          <Stack spacing={2} sx={{ mt: 2.5 }}>
             <TextField
               fullWidth
               placeholder="ابحث عن دفعة..."
@@ -304,7 +317,7 @@ export const PaymentsPage = () => {
 
       {/* Payments List */}
       <Container maxWidth="sm" sx={{ mt: -2 }}>
-        <Stack spacing={1.5}>
+        <Stack spacing={3.5}>
           {filteredPayments.length === 0 ? (
             <Card sx={{ borderRadius: 2.5, textAlign: 'center', py: 6, bgcolor: 'background.paper' }}>
               <PaymentIcon sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.3, mb: 2 }} />
@@ -338,20 +351,22 @@ export const PaymentsPage = () => {
                     border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : 'none',
                   }}
                 >
-                  <CardContent sx={{ p: 2 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack direction="row" alignItems="flex-start" spacing={0}>
                       <Avatar
                         sx={{
                           bgcolor: 'success.light',
-                          width: 40,
-                          height: 40,
+                          width: 48,
+                          height: 48,
+                          flexShrink: 0,
+                          marginLeft: '24px',
                         }}
                       >
                         <PaymentIcon sx={{ color: 'success.main', fontSize: 20 }} />
                       </Avatar>
                       
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
                           <Typography variant="body2" fontWeight={700} noWrap>
                             {client?.name}
                           </Typography>
@@ -360,11 +375,11 @@ export const PaymentsPage = () => {
                             size="small"
                             color="success"
                             variant="outlined"
-                            sx={{ height: 18, fontSize: '0.6rem' }}
+                            sx={{ height: 20, fontSize: '0.65rem' }}
                           />
                         </Stack>
                         
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
                           {payment.invoiceId && invoice ? `${invoice.invoiceNumber} • ` : ''}{dayjs(payment.paymentDate).format('DD/MM/YYYY')}
                         </Typography>
 
@@ -377,11 +392,15 @@ export const PaymentsPage = () => {
                         </Typography>
                       </Box>
 
-                      <Stack direction="row" spacing={0.5}>
+                      <Stack direction="row" spacing={2} sx={{ ml: 1 }}>
                         <IconButton
                           size="small"
                           onClick={() => handleOpenDialog(payment)}
-                          sx={{ color: 'primary.main' }}
+                          sx={{ 
+                            color: 'primary.main',
+                            width: 36,
+                            height: 36,
+                          }}
                         >
                           <Edit fontSize="small" />
                         </IconButton>
@@ -389,6 +408,10 @@ export const PaymentsPage = () => {
                           size="small"
                           color="error"
                           onClick={() => handleDelete(payment.id)}
+                          sx={{
+                            width: 36,
+                            height: 36,
+                          }}
                         >
                           <Delete fontSize="small" />
                         </IconButton>
@@ -396,12 +419,25 @@ export const PaymentsPage = () => {
                     </Stack>
 
                     {payment.notes && (
-                      <>
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {payment.notes}
-                        </Typography>
-                      </>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          mt: 1,
+                          fontStyle: "italic",
+                          lineHeight: 1.6,
+                          px: 1,
+                          py: 0.5,
+                          bgcolor:
+                            theme.palette.mode === "dark"
+                              ? "rgba(255,255,255,0.05)"
+                              : "rgba(0,0,0,0.03)",
+                          borderRadius: 1,
+                          borderRight: `2px solid ${theme.palette.success.main}`,
+                        }}
+                      >
+                        💬 {payment.notes}
+                      </Typography>
                     )}
                   </CardContent>
                 </Card>
@@ -442,8 +478,8 @@ export const PaymentsPage = () => {
             </Stack>
           </Box>
 
-          <Box sx={{ p: 2 }}>
-            <Stack spacing={2}>
+          <Box sx={{ p: 3.5 }}>
+            <Stack spacing={3}>
               <Controller
                 name="clientId"
                 control={control}
@@ -558,7 +594,7 @@ export const PaymentsPage = () => {
               />
             </Stack>
 
-            <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+            <Stack direction="row" spacing={2} sx={{ mt: 5 }}>
               <Button
                 onClick={handleCloseDialog}
                 fullWidth
@@ -581,6 +617,22 @@ export const PaymentsPage = () => {
           </Box>
         </form>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarMessage.includes('خطأ') ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
