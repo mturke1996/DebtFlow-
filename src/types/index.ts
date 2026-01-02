@@ -58,10 +58,25 @@ export interface Payment {
   updatedAt: string;
 }
 
+// Debt Party Types (بروفايلات الديون: أشخاص/محلات/شركات)
+export interface DebtParty {
+  id: string;
+  clientId: string;
+  name: string; // اسم الشخص/المحل/الشركة
+  phone: string; // رقم الهاتف
+  address: string; // العنوان
+  type: 'person' | 'shop' | 'company'; // نوع البروفايل
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Standalone Debt Types (منفصل عن المصروفات)
 export interface StandaloneDebt {
   id: string;
   clientId: string;
+  partyId: string; // معرف البروفايل المرتبط
+  partyType: 'person' | 'shop' | 'company'; // نوع الطرف: شخص، محل، شركة
+  partyName: string; // اسم الشخص/المحل/الشركة (للتوافق مع البيانات القديمة)
   description: string;
   amount: number;
   paidAmount: number;

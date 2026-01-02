@@ -249,9 +249,6 @@ export const ClientsPage = () => {
             </Card>
           ) : (
             filteredClients.map((client) => {
-              const remainingBalance = getClientRemainingBalance(client.id);
-              const hasDebt = remainingBalance > 0;
-              
               return (
                 <Card
                   key={client.id}
@@ -298,8 +295,20 @@ export const ClientsPage = () => {
 
                       {/* Client Info */}
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5 }}>
-                          <Typography variant="body2" fontWeight={700} noWrap>
+                        <Stack 
+                          direction={{ xs: 'column', sm: 'row' }} 
+                          spacing={{ xs: 1, sm: 2 }} 
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          sx={{ mb: 1.5 }}
+                        >
+                          <Typography 
+                            variant="h6" 
+                            fontWeight={800}
+                            sx={{
+                              fontSize: { xs: '1rem', sm: '1.25rem' },
+                              wordBreak: 'break-word',
+                            }}
+                          >
                             {client.name}
                           </Typography>
                           <Chip
@@ -307,36 +316,40 @@ export const ClientsPage = () => {
                             size="small"
                             color={client.type === 'company' ? 'primary' : 'secondary'}
                             variant="outlined"
-                            sx={{ height: 20, fontSize: '0.65rem' }}
+                            sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600, flexShrink: 0 }}
                           />
                         </Stack>
                         
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                          {client.phone}
-                        </Typography>
-
-                        {/* Remaining Balance */}
-                        <Stack direction="row" alignItems="center" spacing={0} sx={{ mt: 1 }}>
-                          <AccountBalance 
-                            sx={{ 
-                              color: hasDebt ? 'error.main' : 'success.main',
-                              fontSize: 18,
-                              marginLeft: '16px',
-                              flexShrink: 0,
-                            }} 
-                          />
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          sx={{
+                            bgcolor: theme.palette.mode === 'dark' 
+                              ? 'rgba(255,255,255,0.05)' 
+                              : 'rgba(0,0,0,0.03)',
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: 2,
+                            mt: 1,
+                          }}
+                        >
+                          <Phone sx={{ fontSize: 16, color: 'text.secondary', opacity: 0.8 }} />
                           <Typography 
-                            variant="body1" 
-                            fontWeight={800}
-                            color={hasDebt ? 'error.main' : 'success.main'}
+                            variant="body2" 
+                            color="text.secondary" 
+                            sx={{ 
+                              fontWeight: 600,
+                              fontSize: { xs: '0.875rem', sm: '0.9375rem' },
+                            }}
                           >
-                            {formatCurrency(Math.abs(remainingBalance))}
+                            {client.phone}
                           </Typography>
                         </Stack>
                       </Box>
 
                       {/* Actions */}
-                      <Stack direction="row" spacing={1.5} sx={{ marginLeft: '16px', flexShrink: 0 }}>
+                      <Stack direction="row" spacing={{ xs: 2.5, sm: 3 }} sx={{ marginLeft: '16px', flexShrink: 0 }}>
                         <IconButton
                           size="small"
                           onClick={(e) => {
@@ -344,21 +357,23 @@ export const ClientsPage = () => {
                             handleOpenDialog(client);
                           }}
                           sx={{
-                            bgcolor: 'primary.light',
-                            color: 'primary.main',
-                            width: 40,
-                            height: 40,
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            width: { xs: 44, sm: 40 },
+                            height: { xs: 44, sm: 40 },
                             borderRadius: 2,
-                            boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                             '&:hover': { 
-                              bgcolor: 'primary.main', 
-                              color: 'white',
+                              bgcolor: 'primary.dark',
                               transform: 'scale(1.05)',
                             },
-                            transition: 'all 0.2s',
+                            '&:active': {
+                              transform: 'scale(0.95)',
+                            },
+                            transition: 'all 0.2s ease-in-out',
                           }}
                         >
-                          <Edit sx={{ fontSize: 20 }} />
+                          <Edit sx={{ fontSize: { xs: 20, sm: 18 } }} />
                         </IconButton>
                         <IconButton
                           size="small"
@@ -367,21 +382,23 @@ export const ClientsPage = () => {
                             handleDelete(client.id);
                           }}
                           sx={{
-                            bgcolor: 'error.light',
-                            color: 'error.main',
-                            width: 40,
-                            height: 40,
+                            bgcolor: 'error.main',
+                            color: 'white',
+                            width: { xs: 44, sm: 40 },
+                            height: { xs: 44, sm: 40 },
                             borderRadius: 2,
-                            boxShadow: '0 2px 8px rgba(211, 47, 47, 0.2)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                             '&:hover': { 
-                              bgcolor: 'error.main', 
-                              color: 'white',
+                              bgcolor: 'error.dark',
                               transform: 'scale(1.05)',
                             },
-                            transition: 'all 0.2s',
+                            '&:active': {
+                              transform: 'scale(0.95)',
+                            },
+                            transition: 'all 0.2s ease-in-out',
                           }}
                         >
-                          <Delete sx={{ fontSize: 20 }} />
+                          <Delete sx={{ fontSize: { xs: 20, sm: 18 } }} />
                         </IconButton>
                       </Stack>
                     </Stack>

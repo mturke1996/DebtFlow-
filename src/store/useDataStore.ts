@@ -9,6 +9,7 @@ import type {
   Expense,
   StandaloneDebt,
   ExpenseInvoice,
+  DebtParty,
 } from "../types";
 import {
   clientsService,
@@ -19,6 +20,7 @@ import {
   expensesService,
   standaloneDebtsService,
   expenseInvoicesService,
+  debtPartiesService,
   closeExpensesAndCreateInvoice as closeExpensesAndCreateInvoiceService,
 } from "../services/firebaseService";
 
@@ -32,6 +34,7 @@ interface DataState {
   expenses: Expense[];
   standaloneDebts: StandaloneDebt[];
   expenseInvoices: ExpenseInvoice[];
+  debtParties: DebtParty[];
 
   // Loading states
   isLoading: boolean;
@@ -88,6 +91,12 @@ interface DataState {
   deleteStandaloneDebt: (id: string) => Promise<void>;
   setStandaloneDebts: (debts: StandaloneDebt[]) => void;
 
+  // Debt Party operations
+  addDebtParty: (party: DebtParty) => Promise<void>;
+  updateDebtParty: (id: string, data: Partial<DebtParty>) => Promise<void>;
+  deleteDebtParty: (id: string) => Promise<void>;
+  setDebtParties: (parties: DebtParty[]) => void;
+
   // Expense Invoice operations
   closeExpensesAndCreateInvoice: (
     expenseIds: string[],
@@ -115,6 +124,7 @@ export const useDataStore = create<DataState>()(
       expenses: [],
       standaloneDebts: [],
       expenseInvoices: [],
+      debtParties: [],
       isLoading: false,
       error: null,
       initialized: false,
@@ -134,6 +144,7 @@ export const useDataStore = create<DataState>()(
             expenses,
             standaloneDebts,
             expenseInvoices,
+            debtParties,
           ] = await Promise.all([
             clientsService.getAll(),
             invoicesService.getAll(),
@@ -143,6 +154,7 @@ export const useDataStore = create<DataState>()(
             expensesService.getAll(),
             standaloneDebtsService.getAll(),
             expenseInvoicesService.getAll(),
+            debtPartiesService.getAll(),
           ]);
 
           set({
@@ -154,6 +166,7 @@ export const useDataStore = create<DataState>()(
             expenses,
             standaloneDebts,
             expenseInvoices,
+            debtParties,
             isLoading: false,
             initialized: true,
           });
@@ -220,6 +233,12 @@ export const useDataStore = create<DataState>()(
           }
         );
 
+        const unsubscribeDebtParties = debtPartiesService.subscribe(
+          (debtParties) => {
+            set({ debtParties });
+          }
+        );
+
         // Store cleanup function
         const cleanup = () => {
           unsubscribeClients();
@@ -230,6 +249,7 @@ export const useDataStore = create<DataState>()(
           unsubscribeExpenses();
           unsubscribeStandaloneDebts();
           unsubscribeExpenseInvoices();
+          unsubscribeDebtParties();
         };
 
         set({ unsubscribeFunctions: cleanup });
@@ -636,6 +656,45 @@ export const useDataStore = create<DataState>()(
 
       setStandaloneDebts: (standaloneDebts: StandaloneDebt[]) =>
         set({ standaloneDebts }),
+
+      // Debt Party operations
+      addDebtParty: async (party: DebtParty) => {
+        try {
+          set({ isLoading: true });
+          await debtPartiesService.add(party);
+          set({ isLoading: false });
+        } catch (error) {
+          console.error("Error adding debt party:", error);
+          set({ error: "حدث خطأ أثناء إضافة البروفايل", isLoading: false });
+          throw error;
+        }
+      },
+
+      updateDebtParty: async (id: string, data: Partial<DebtParty>) => {
+        try {
+          set({ isLoading: true });
+          await debtPartiesService.update(id, data);
+          set({ isLoading: false });
+        } catch (error) {
+          console.error("Error updating debt party:", error);
+          set({ error: "حدث خطأ أثناء تحديث البروفايل", isLoading: false });
+          throw error;
+        }
+      },
+
+      deleteDebtParty: async (id: string) => {
+        try {
+          set({ isLoading: true });
+          await debtPartiesService.delete(id);
+          set({ isLoading: false });
+        } catch (error) {
+          console.error("Error deleting debt party:", error);
+          set({ error: "حدث خطأ أثناء حذف البروفايل", isLoading: false });
+          throw error;
+        }
+      },
+
+      setDebtParties: (parties: DebtParty[]) => set({ debtParties: parties }),
 
       // Expense Invoice operations
       closeExpensesAndCreateInvoice: async (

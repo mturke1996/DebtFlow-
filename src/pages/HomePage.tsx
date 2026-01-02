@@ -9,8 +9,6 @@ import {
   useTheme,
   IconButton,
   Stack,
-  Fab,
-  Chip,
 } from "@mui/material";
 import {
   People,
@@ -20,60 +18,96 @@ import {
   Brightness7,
   Logout,
   ChevronLeft,
-  Wallet,
-  AccountBalanceWallet,
   TrendingUp,
-  CreditScore,
 } from "@mui/icons-material";
 import { useDataStore } from "@/store/useDataStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useThemeStore } from "@/store/useThemeStore";
 import { formatCurrency } from "@/utils/calculations";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 export const HomePage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { payments, clients, standaloneDebts } = useDataStore();
+  const { payments, clients, expenses } = useDataStore();
   const { user, logout } = useAuthStore();
   const { mode, toggleTheme } = useThemeStore();
+  const [profitRecalcTrigger, setProfitRecalcTrigger] = useState(0);
+
+  // Listen for storage changes to update profit calculation
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // Force re-render by updating state
+      setProfitRecalcTrigger((prev) => prev + 1);
+    };
+    window.addEventListener("storage", handleStorageChange);
+    // Also listen for custom event for same-window updates
+    window.addEventListener("profitPercentageUpdated", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(
+        "profitPercentageUpdated",
+        handleStorageChange
+      );
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const totalPaid = payments.reduce((sum, pay) => sum + pay.amount, 0);
-    const totalDebts = standaloneDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
     const clientsCount = clients.length;
 
-    return { totalPaid, totalDebts, clientsCount };
-  }, [payments, clients, standaloneDebts]);
+    // Calculate profit for each client separately
+    // Each client has their own percentage stored in localStorage
+    const totalProfit = clients.reduce((totalProfit, client) => {
+      const clientPercentage = localStorage.getItem(
+        `profitPercentage_${client.id}`
+      );
+      if (!clientPercentage || isNaN(parseFloat(clientPercentage))) {
+        return totalProfit;
+      }
+
+      // Get expenses for this client only
+      const clientExpenses = expenses.filter(
+        (exp) => exp.clientId === client.id
+      );
+      const clientTotalExpenses = clientExpenses.reduce(
+        (sum, exp) => sum + exp.amount,
+        0
+      );
+      const clientProfit =
+        (clientTotalExpenses * parseFloat(clientPercentage)) / 100;
+
+      return totalProfit + clientProfit;
+    }, 0);
+
+    return { totalPaid, clientsCount, profit: totalProfit };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payments, clients, expenses, profitRecalcTrigger]);
 
   const menuItems = [
     {
       title: "العملاء",
-      subtitle: `${stats.clientsCount} عميل`,
       icon: People,
       path: "/clients",
-      gradient: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
+      color: "#ec4899",
+      bgColor:
+        theme.palette.mode === "dark" ? "rgba(236, 72, 153, 0.2)" : "#fce7f3",
     },
     {
       title: "الفواتير",
-      subtitle: "إدارة الفواتير",
       icon: Receipt,
       path: "/invoices",
-      gradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+      color: "#3b82f6",
+      bgColor:
+        theme.palette.mode === "dark" ? "rgba(59, 130, 246, 0.2)" : "#dbeafe",
     },
     {
       title: "المدفوعات",
-      subtitle: formatCurrency(stats.totalPaid),
       icon: Payment,
       path: "/payments",
-      gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-    },
-    {
-      title: "الديون",
-      subtitle: formatCurrency(stats.totalDebts),
-      icon: CreditScore,
-      path: "/debts",
-      gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+      color: "#10b981",
+      bgColor:
+        theme.palette.mode === "dark" ? "rgba(16, 185, 129, 0.2)" : "#d1fae5",
     },
   ];
 
@@ -86,21 +120,17 @@ export const HomePage = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        background: theme.palette.mode === "dark" 
-          ? "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)" 
-          : "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)",
+        background: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
         pb: 4,
       }}
     >
       {/* Header */}
       <Box
         sx={{
-          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)",
-          pt: 4,
-          pb: 6,
+          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+          pt: 3,
+          pb: 4,
           px: 2,
-          borderRadius: "0 0 32px 32px",
-          boxShadow: "0 8px 32px rgba(99, 102, 241, 0.25)",
         }}
       >
         <Container maxWidth="sm">
@@ -109,18 +139,16 @@ export const HomePage = () => {
             direction="row"
             justifyContent="space-between"
             alignItems="center"
-            sx={{ mb: 4 }}
+            sx={{ mb: 3 }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={1.5} alignItems="center">
               <Avatar
                 sx={{
-                  width: 52,
-                  height: 52,
-                  bgcolor: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(10px)",
-                  fontSize: "1.3rem",
-                  fontWeight: 800,
-                  border: "2px solid rgba(255,255,255,0.3)",
+                  width: 45,
+                  height: 45,
+                  bgcolor: "rgba(255,255,255,0.25)",
+                  fontSize: "1.2rem",
+                  fontWeight: 700,
                 }}
               >
                 {user?.displayName?.charAt(0) ||
@@ -129,40 +157,32 @@ export const HomePage = () => {
               <Box>
                 <Typography
                   variant="body2"
-                  sx={{
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: "0.75rem",
-                    mb: 0.3,
-                    letterSpacing: 0.5,
-                  }}
+                  sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.8rem" }}
                 >
-                  مرحباً بك 👋
+                  مرحباً
                 </Typography>
                 <Typography
                   variant="body1"
-                  sx={{ color: "white", fontWeight: 700, fontSize: "1.1rem" }}
+                  sx={{ color: "white", fontWeight: 700, fontSize: "1rem" }}
                 >
                   {user?.displayName || user?.email.split("@")[0]}
                 </Typography>
               </Box>
             </Stack>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={0.5}>
               <IconButton
                 onClick={toggleTheme}
                 sx={{
                   color: "white",
                   bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
-                  width: 44,
-                  height: 44,
-                  borderRadius: 2.5,
                 }}
+                size="small"
               >
                 {mode === "dark" ? (
-                  <Brightness7 sx={{ fontSize: 22 }} />
+                  <Brightness7 fontSize="small" />
                 ) : (
-                  <Brightness4 sx={{ fontSize: 22 }} />
+                  <Brightness4 fontSize="small" />
                 )}
               </IconButton>
               <IconButton
@@ -170,73 +190,95 @@ export const HomePage = () => {
                 sx={{
                   color: "white",
                   bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
-                  "&:hover": { bgcolor: "rgba(239,68,68,0.3)" },
-                  width: 44,
-                  height: 44,
-                  borderRadius: 2.5,
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
                 }}
+                size="small"
               >
-                <Logout sx={{ fontSize: 22 }} />
+                <Logout fontSize="small" />
               </IconButton>
             </Stack>
           </Stack>
 
-          {/* Balance Card */}
+          {/* Title */}
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                color: "white",
+                fontWeight: 900,
+                mb: 0.5,
+                fontSize: { xs: "1.5rem", sm: "2rem" },
+                letterSpacing: 0.5,
+                textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              }}
+            >
+              المهندس محمد التركي
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "rgba(255,255,255,0.95)",
+                fontWeight: 500,
+                fontSize: { xs: "0.875rem", sm: "1rem" },
+                letterSpacing: 0.3,
+              }}
+            >
+              إدارة الديون والفواتير
+            </Typography>
+          </Box>
+
+          {/* Profit Card */}
           <Card
             sx={{
-              background: "rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.15)",
               backdropFilter: "blur(20px)",
               border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 4,
+              borderRadius: 3,
               color: "white",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-              overflow: "visible",
+              boxShadow: "none",
             }}
           >
-            <CardContent sx={{ py: 3.5, px: 3 }}>
-              <Stack direction="row" alignItems="center" spacing={2}>
+            <CardContent sx={{ py: 2.5 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{ opacity: 0.9, fontSize: "0.75rem" }}
+                  >
+                    إجمالي الأرباح
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900}>
+                    {formatCurrency(stats.profit)}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.8,
+                      fontSize: "0.7rem",
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    من جميع العملاء
+                  </Typography>
+                </Box>
                 <Box
                   sx={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 3,
+                    width: 50,
+                    height: 50,
+                    borderRadius: 2.5,
                     bgcolor: "rgba(255,255,255,0.2)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
                   }}
                 >
-                  <AccountBalanceWallet sx={{ fontSize: 32 }} />
+                  <TrendingUp sx={{ fontSize: 28 }} />
                 </Box>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      opacity: 0.85,
-                      fontSize: "0.8rem",
-                      mb: 0.5,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    إجمالي المدفوعات
-                  </Typography>
-                  <Typography variant="h4" fontWeight={900} sx={{ letterSpacing: -0.5 }}>
-                    {formatCurrency(stats.totalPaid)}
-                  </Typography>
-                </Box>
-                <Chip
-                  icon={<TrendingUp sx={{ fontSize: 16, color: "#10b981 !important" }} />}
-                  label="نشط"
-                  size="small"
-                  sx={{
-                    bgcolor: "rgba(16, 185, 129, 0.2)",
-                    color: "#6ee7b7",
-                    fontWeight: 600,
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                  }}
-                />
               </Stack>
             </CardContent>
           </Card>
@@ -244,113 +286,65 @@ export const HomePage = () => {
       </Box>
 
       {/* Main Content */}
-      <Container maxWidth="sm" sx={{ mt: -3, position: "relative", zIndex: 1 }}>
-        {/* Quick Stats */}
-        <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
-          <Card
-            sx={{
-              flex: 1,
-              borderRadius: 3,
-              boxShadow: theme.palette.mode === "dark" 
-                ? "0 4px 20px rgba(0,0,0,0.4)" 
-                : "0 4px 20px rgba(0,0,0,0.08)",
-              border: theme.palette.mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "none",
-            }}
-          >
-            <CardContent sx={{ py: 2.5, textAlign: "center" }}>
-              <Typography variant="h5" fontWeight={800} color="primary.main">
-                {stats.clientsCount}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                عميل
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card
-            sx={{
-              flex: 1,
-              borderRadius: 3,
-              boxShadow: theme.palette.mode === "dark" 
-                ? "0 4px 20px rgba(0,0,0,0.4)" 
-                : "0 4px 20px rgba(0,0,0,0.08)",
-              border: theme.palette.mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "none",
-            }}
-          >
-            <CardContent sx={{ py: 2.5, textAlign: "center" }}>
-              <Typography variant="h5" fontWeight={800} color="warning.main">
-                {formatCurrency(stats.totalDebts)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                ديون نشطة
-              </Typography>
-            </CardContent>
-          </Card>
-        </Stack>
-
+      <Container maxWidth="sm" sx={{ mt: -2 }}>
         {/* Menu Section */}
         <Typography
           variant="h6"
-          fontWeight={800}
-          sx={{ mb: 3, px: 0.5, color: "text.primary" }}
+          fontWeight={700}
+          sx={{ mb: 2, px: 0.5, mt: 3 }}
         >
           القوائم الرئيسية
         </Typography>
 
-        <Stack spacing={2}>
+        <Stack spacing={1.5}>
           {menuItems.map((item, index) => (
             <Card
               key={index}
               onClick={() => navigate(item.path)}
               sx={{
-                borderRadius: 4,
-                boxShadow: theme.palette.mode === "dark" 
-                  ? "0 4px 20px rgba(0,0,0,0.4)" 
-                  : "0 4px 20px rgba(0,0,0,0.08)",
+                borderRadius: 2.5,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                 cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                border: theme.palette.mode === "dark" ? "1px solid rgba(255,255,255,0.08)" : "none",
-                overflow: "hidden",
-                "&:hover": {
-                  transform: "translateY(-4px) scale(1.01)",
-                  boxShadow: theme.palette.mode === "dark" 
-                    ? "0 12px 40px rgba(0,0,0,0.5)" 
-                    : "0 12px 40px rgba(0,0,0,0.15)",
-                },
+                transition: "all 0.2s",
+                border:
+                  theme.palette.mode === "dark"
+                    ? "1px solid rgba(255,255,255,0.1)"
+                    : "none",
                 "&:active": {
                   transform: "scale(0.98)",
                 },
               }}
             >
-              <CardContent sx={{ p: 0 }}>
-                <Stack direction="row" alignItems="stretch">
-                  <Box
-                    sx={{
-                      width: 80,
-                      background: item.gradient,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      py: 3,
-                    }}
-                  >
-                    <item.icon sx={{ fontSize: 32, color: "white" }} />
-                  </Box>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ flexGrow: 1, px: 2.5, py: 2 }}
-                  >
+              <CardContent sx={{ p: 2 }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box
+                      sx={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 2,
+                        bgcolor: item.bgColor,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <item.icon sx={{ fontSize: 26, color: item.color }} />
+                    </Box>
                     <Box>
-                      <Typography variant="body1" fontWeight={700} sx={{ mb: 0.3 }}>
+                      <Typography variant="body1" fontWeight={700}>
                         {item.title}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                        {item.subtitle}
+                      <Typography variant="caption" color="text.secondary">
+                        اضغط للدخول
                       </Typography>
                     </Box>
-                    <ChevronLeft sx={{ color: "text.secondary", fontSize: 24 }} />
                   </Stack>
+                  <ChevronLeft sx={{ color: "text.secondary" }} />
                 </Stack>
               </CardContent>
             </Card>
@@ -358,9 +352,9 @@ export const HomePage = () => {
         </Stack>
 
         {/* Footer */}
-        <Box sx={{ textAlign: "center", mt: 5, opacity: 0.5 }}>
-          <Typography variant="caption" color="text.secondary" fontWeight={500}>
-            DebtFlow Pro © 2024
+        <Box sx={{ textAlign: "center", mt: 4, opacity: 0.6 }}>
+          <Typography variant="caption" color="text.secondary">
+            المهندس محمد التركي © 2024
           </Typography>
         </Box>
       </Container>

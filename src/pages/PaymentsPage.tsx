@@ -437,7 +437,7 @@ export const PaymentsPage = () => {
                         }}
                       >
                         💬 {payment.notes}
-                      </Typography>
+                        </Typography>
                     )}
                   </CardContent>
                 </Card>

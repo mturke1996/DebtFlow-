@@ -215,7 +215,7 @@ export const DebtsPage = () => {
 
       {/* Stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">
@@ -227,7 +227,7 @@ export const DebtsPage = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">
@@ -239,7 +239,7 @@ export const DebtsPage = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <Card>
             <CardContent>
               <Typography variant="body2" color="text.secondary">

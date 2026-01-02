@@ -10,6 +10,9 @@ import {
   Chip,
   IconButton,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   TextField,
   Container,
   Avatar,
@@ -44,6 +47,8 @@ import {
   AttachMoney,
   Business,
   Person,
+  Store,
+  ChevronLeft,
   Phone,
   Email,
   LocationOn,
@@ -55,7 +60,6 @@ import {
   Edit,
   Delete,
   History,
-  ChevronLeft,
   ChevronRight,
   Today,
   CreditCard,
@@ -77,6 +81,7 @@ import type {
   Expense,
   StandaloneDebt,
   Client,
+  DebtParty,
 } from "@/types";
 
 dayjs.locale("ar");
@@ -95,7 +100,7 @@ export const ClientProfilePage = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const theme = useTheme();
-
+  
   const {
     clients,
     payments,
@@ -103,6 +108,7 @@ export const ClientProfilePage = () => {
     standaloneDebts,
     expenseInvoices,
     invoices,
+    debtParties,
     addPayment,
     updatePayment,
     deletePayment,
@@ -112,6 +118,9 @@ export const ClientProfilePage = () => {
     addStandaloneDebt,
     updateStandaloneDebt,
     deleteStandaloneDebt,
+    addDebtParty,
+    updateDebtParty,
+    deleteDebtParty,
     closeExpensesAndCreateInvoice,
     updateClient,
     deleteClient,
@@ -144,14 +153,14 @@ export const ClientProfilePage = () => {
       icon: CreditCard,
       color: "#f59e0b",
       bgColor: "#fef3c7",
-      onClick: () => debtsRef.current?.scrollIntoView({ behavior: "smooth" }),
+      onClick: () => setDebtsListDialogOpen(true),
     },
     {
       title: "حساب الأرباح",
       icon: TrendingUp,
-      color: "#3b82f6",
-      bgColor: "#dbeafe",
-      onClick: () => profitsRef.current?.scrollIntoView({ behavior: "smooth" }),
+      color: "#8b5cf6",
+      bgColor: theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.2)" : "#ede9fe",
+      onClick: () => setProfitDialogOpen(true),
     },
   ];
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -166,16 +175,26 @@ export const ClientProfilePage = () => {
   const [editClientDialogOpen, setEditClientDialogOpen] = useState(false);
   const [expensesListDialogOpen, setExpensesListDialogOpen] = useState(false);
   const [paymentsListDialogOpen, setPaymentsListDialogOpen] = useState(false);
+  const [debtsListDialogOpen, setDebtsListDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentType | null>(
     null
   );
+  const [payDebtDialogOpen, setPayDebtDialogOpen] = useState(false);
+  const [selectedDebtForPay, setSelectedDebtForPay] = useState<StandaloneDebt | null>(null);
+  const [payDebtAmount, setPayDebtAmount] = useState<string>("");
+  const [partyProfileDialogOpen, setPartyProfileDialogOpen] = useState(false);
+  const [selectedParty, setSelectedParty] = useState<DebtParty | null>(null);
+  const [partyDialogOpen, setPartyDialogOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<DebtParty | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [profitDialogOpen, setProfitDialogOpen] = useState(false);
+  const [profitPercentage, setProfitPercentage] = useState<string>("");
 
   const client = clients.find((c) => c.id === clientId);
   const clientInitial =
     client?.name?.charAt(0)?.toUpperCase?.() || "ع";
-
+  
   // Client Edit Form
   const {
     control: clientControl,
@@ -205,7 +224,7 @@ export const ClientProfilePage = () => {
       });
     }
   }, [client, resetClient]);
-
+  
   // Payment Form
   const {
     control: paymentControl,
@@ -246,17 +265,81 @@ export const ClientProfilePage = () => {
     setValue: setDebtValue,
   } = useForm({
     defaultValues: {
+      partyType: "person" as "person" | "shop" | "company",
+      partyName: "",
       description: "",
-      amount: 0,
+      amount: "" as any,
       date: dayjs().format("YYYY-MM-DD"),
       notes: "",
     },
   });
 
+  // Party Form
+  const {
+    control: partyControl,
+    handleSubmit: handlePartySubmit,
+    reset: resetParty,
+    setValue: setPartyValue,
+  } = useForm({
+    defaultValues: {
+      name: "",
+      phone: "",
+      address: "",
+      type: "person" as "person" | "shop" | "company",
+    },
+  });
+
+  // Update party form when editing
+  useEffect(() => {
+    if (editingParty) {
+      setPartyValue("name", editingParty.name);
+      setPartyValue("phone", editingParty.phone);
+      setPartyValue("address", editingParty.address);
+      setPartyValue("type", editingParty.type);
+    } else {
+      resetParty({
+        name: "",
+        phone: "",
+        address: "",
+        type: "person",
+      });
+    }
+  }, [editingParty, setPartyValue, resetParty]);
+
+  // Load profit percentage for this client from localStorage
+  useEffect(() => {
+    if (clientId) {
+      const savedPercentage = localStorage.getItem(`profitPercentage_${clientId}`);
+      if (savedPercentage) {
+        setProfitPercentage(savedPercentage);
+      } else {
+        setProfitPercentage("");
+      }
+    }
+  }, [clientId]);
+
+  // Handle save profit percentage for this client
+  const handleSaveProfitPercentage = () => {
+    if (!clientId) return;
+    
+    const percentage = parseFloat(profitPercentage);
+    if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+      setSnackbarMessage("النسبة يجب أن تكون بين 0 و 100");
+      setSnackbarOpen(true);
+      return;
+    }
+    localStorage.setItem(`profitPercentage_${clientId}`, profitPercentage);
+    // Dispatch custom event to update HomePage
+    window.dispatchEvent(new Event("profitPercentageUpdated"));
+    setSnackbarMessage("تم حفظ النسبة بنجاح");
+    setSnackbarOpen(true);
+    setProfitDialogOpen(false);
+  };
+
   const clientExpenses = useMemo(
     () =>
       expenses
-        .filter((exp) => exp.clientId === clientId)
+      .filter((exp) => exp.clientId === clientId)
         .sort((a, b) => dayjs(b.createdAt).diff(dayjs(a.createdAt))),
     [expenses, clientId]
   );
@@ -264,24 +347,66 @@ export const ClientProfilePage = () => {
   const clientPayments = useMemo(
     () =>
       payments
-        .filter((pay) => pay.clientId === clientId)
-        .sort((a, b) => dayjs(b.paymentDate).diff(dayjs(a.paymentDate))),
+      .filter((pay) => pay.clientId === clientId)
+      .sort((a, b) => dayjs(b.paymentDate).diff(dayjs(a.paymentDate))),
     [payments, clientId]
   );
 
   const clientDebts = useMemo(
     () =>
       standaloneDebts
-        .filter((debt) => debt.clientId === clientId)
-        .sort((a, b) => dayjs(b.date).diff(dayjs(a.date))),
+      .filter((debt) => debt.clientId === clientId)
+      .sort((a, b) => dayjs(b.date).diff(dayjs(a.date))),
     [standaloneDebts, clientId]
   );
+
+  // Get debt parties for this client
+  const clientDebtParties = useMemo(() => {
+    return debtParties.filter((p) => p.clientId === clientId);
+  }, [debtParties, clientId]);
+
+  // Group debts by party (using debt parties)
+  const parties = useMemo(() => {
+    return clientDebtParties.map((party) => {
+      const partyDebts = clientDebts.filter(
+        (d) => (d as any).partyId === party.id || ((d as any).partyName === party.name && (d as any).partyType === party.type)
+      );
+      const totalAmount = partyDebts.reduce((sum, d) => sum + d.amount, 0);
+      const totalPaid = partyDebts.reduce((sum, d) => sum + d.paidAmount, 0);
+      const totalRemaining = partyDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+      return {
+        ...party,
+        debts: partyDebts,
+        totalAmount,
+        totalPaid,
+        totalRemaining,
+      };
+    }).sort((a, b) => 
+      dayjs(b.createdAt || "").diff(dayjs(a.createdAt || ""))
+    );
+  }, [clientDebtParties, clientDebts]);
+
+  // Get debts for selected party
+  const partyDebts = useMemo(() => {
+    if (!selectedParty) return [];
+    return clientDebts.filter(
+      (debt) => (debt as any).partyId === selectedParty.id || 
+        ((debt as any).partyName === selectedParty.name && (debt as any).partyType === selectedParty.type)
+    );
+  }, [clientDebts, selectedParty]);
+
+  const partyStats = useMemo(() => {
+    const totalAmount = partyDebts.reduce((sum, d) => sum + d.amount, 0);
+    const totalPaid = partyDebts.reduce((sum, d) => sum + d.paidAmount, 0);
+    const totalRemaining = partyDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+    return { totalAmount, totalPaid, totalRemaining };
+  }, [partyDebts]);
 
   const clientExpenseInvoices = useMemo(
     () =>
       expenseInvoices
-        .filter((inv) => inv.clientId === clientId)
-        .sort((a, b) => dayjs(b.issueDate).diff(dayjs(a.issueDate))),
+      .filter((inv) => inv.clientId === clientId)
+      .sort((a, b) => dayjs(b.issueDate).diff(dayjs(a.issueDate))),
     [expenseInvoices, clientId]
   );
 
@@ -302,7 +427,7 @@ export const ClientProfilePage = () => {
 
   // Get expenses for selected month
   const selectedMonthExpenses = useMemo(() => {
-    return clientExpenses.filter((exp) =>
+    return clientExpenses.filter((exp) => 
       dayjs(exp.date).isSame(selectedDate, "month")
     );
   }, [clientExpenses, selectedDate]);
@@ -313,22 +438,33 @@ export const ClientProfilePage = () => {
       0
     );
     const totalDebts = clientDebts.reduce(
-      (sum, debt) => sum + debt.remainingAmount,
+      (sum, debt) => sum + (debt.remainingAmount || 0),
       0
     );
     const totalPaid = clientPayments.reduce((sum, pay) => sum + pay.amount, 0);
-    const remainingBalance = totalExpenses + totalDebts - totalPaid;
+
+    console.log("Summary calculation:", {
+      clientId,
+      clientDebtsCount: clientDebts.length,
+      clientDebts: clientDebts.map(d => ({
+        id: d.id,
+        amount: d.amount,
+        paidAmount: d.paidAmount,
+        remainingAmount: d.remainingAmount,
+        status: d.status,
+      })),
+      totalDebts,
+    });
 
     return {
       totalExpenses,
       totalDebts,
       totalPaid,
-      remainingBalance,
       expenseCount: clientExpenses.length,
       debtCount: clientDebts.length,
       paymentCount: clientPayments.length,
     };
-  }, [clientExpenses, clientDebts, clientPayments]);
+  }, [clientExpenses, clientDebts, clientPayments, clientId]);
 
   const handleEditExpense = (expense: Expense) => {
     console.log("Editing expense:", expense);
@@ -361,6 +497,8 @@ export const ClientProfilePage = () => {
 
   const handleEditDebt = (debt: StandaloneDebt) => {
     setEditingDebt(debt);
+    setDebtValue("partyType", debt.partyType || "person");
+    setDebtValue("partyName", debt.partyName || "");
     setDebtValue("description", debt.description);
     setDebtValue("amount", debt.amount);
     setDebtValue("date", debt.date);
@@ -372,9 +510,164 @@ export const ClientProfilePage = () => {
     if (window.confirm("هل أنت متأكد من حذف هذا الدين؟")) {
       try {
         await deleteStandaloneDebt(debtId);
-      } catch (error) {
+        setSnackbarMessage("تم الحذف بنجاح");
+        setSnackbarOpen(true);
+      } catch (error: any) {
         console.error("Error deleting debt:", error);
+        const errorMessage =
+          error?.message || error?.toString() || "حدث خطأ أثناء الحذف";
+        setSnackbarMessage(errorMessage);
+        setSnackbarOpen(true);
       }
+    }
+  };
+
+  const handleOpenPayDebtDialog = (debt: StandaloneDebt) => {
+    setSelectedDebtForPay(debt);
+    setPayDebtAmount("");
+    setPayDebtDialogOpen(true);
+  };
+
+  const handleOpenPartyProfile = (party: DebtParty) => {
+    setSelectedParty(party);
+    setPartyProfileDialogOpen(true);
+  };
+
+  const handleAddParty = () => {
+    setEditingParty(null);
+    setPartyDialogOpen(true);
+  };
+
+  const handleEditParty = (party: DebtParty) => {
+    setEditingParty(party);
+    setPartyDialogOpen(true);
+  };
+
+  const handleDeleteParty = async (partyId: string) => {
+    if (window.confirm("هل أنت متأكد من حذف هذا البروفايل؟ سيتم حذف جميع الديون المرتبطة به أيضاً.")) {
+      try {
+        // Delete all debts for this party
+        const debtsToDelete = clientDebts.filter((d) => (d as any).partyId === partyId);
+        for (const debt of debtsToDelete) {
+          await deleteStandaloneDebt(debt.id);
+        }
+        // Delete the party
+        await deleteDebtParty(partyId);
+        setSnackbarMessage("تم الحذف بنجاح");
+        setSnackbarOpen(true);
+      } catch (error: any) {
+        console.error("Error deleting party:", error);
+        setSnackbarMessage(error?.message || "حدث خطأ أثناء الحذف");
+        setSnackbarOpen(true);
+      }
+    }
+  };
+
+  const onSubmitParty = async (data: { name: string; phone: string; address: string; type: "person" | "shop" | "company" }) => {
+    try {
+      if (editingParty) {
+        await updateDebtParty(editingParty.id, {
+          name: data.name,
+          phone: data.phone,
+          address: data.address,
+          type: data.type,
+        });
+        setSnackbarMessage("تم التحديث بنجاح");
+      } else {
+        await addDebtParty({
+          clientId: clientId!,
+          name: data.name,
+          phone: data.phone,
+          address: data.address,
+          type: data.type,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        setSnackbarMessage("تم الإضافة بنجاح");
+      }
+      setPartyDialogOpen(false);
+      setEditingParty(null);
+      setSnackbarOpen(true);
+    } catch (error: any) {
+      console.error("Error saving party:", error);
+      setSnackbarMessage(error?.message || "حدث خطأ أثناء الحفظ");
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handlePayDebt = async () => {
+    if (!selectedDebtForPay) return;
+    const pay = parseFloat(payDebtAmount) || 0;
+    
+    // Get the latest debt data from clientDebts to ensure we have current values
+    const currentDebt = clientDebts.find(d => d.id === selectedDebtForPay.id);
+    if (!currentDebt && !selectedDebtForPay.id.startsWith("party_")) {
+      setSnackbarMessage("الدين غير موجود");
+      setSnackbarOpen(true);
+      return;
+    }
+    
+    const debtToPay = currentDebt || selectedDebtForPay;
+    const maxPayable = debtToPay.remainingAmount;
+    
+    if (pay <= 0 || pay > maxPayable) {
+      setSnackbarMessage(`المبلغ غير صحيح. الحد الأقصى: ${formatCurrency(maxPayable)}`);
+      setSnackbarOpen(true);
+      return;
+    }
+    
+    try {
+      // Check if this is a party-level payment (virtual debt)
+      if (selectedDebtForPay.id.startsWith("party_")) {
+        // Distribute payment across all debts for this party
+        const partyName = selectedDebtForPay.partyName;
+        const partyType = selectedDebtForPay.partyType;
+        const partyDebtsToPay = clientDebts.filter(
+          (d) =>
+            ((d as any).partyName || "") === partyName &&
+            ((d as any).partyType || "person") === partyType &&
+            d.remainingAmount > 0
+        ).sort((a, b) => b.remainingAmount - a.remainingAmount); // Pay larger debts first
+
+        let remainingPay = pay;
+        for (const debt of partyDebtsToPay) {
+          if (remainingPay <= 0) break;
+          const payForThisDebt = Math.min(remainingPay, debt.remainingAmount);
+          const newPaid = debt.paidAmount + payForThisDebt;
+          const newRemaining = Math.max(0, debt.amount - newPaid);
+          await updateStandaloneDebt(debt.id, {
+            paidAmount: newPaid,
+            remainingAmount: newRemaining,
+            status: newRemaining <= 0 ? "paid" : "active",
+          });
+          remainingPay -= payForThisDebt;
+        }
+      } else {
+        // Regular single debt payment - use current debt data
+        const newPaid = debtToPay.paidAmount + pay;
+        const newRemaining = Math.max(0, debtToPay.amount - newPaid);
+        await updateStandaloneDebt(debtToPay.id, {
+          paidAmount: newPaid,
+          remainingAmount: newRemaining,
+          status: newRemaining <= 0 ? "paid" : "active",
+        });
+      }
+      setPayDebtDialogOpen(false);
+      setSelectedDebtForPay(null);
+      setPayDebtAmount("");
+      setSnackbarMessage("تم الدفع بنجاح");
+      setSnackbarOpen(true);
+      if (partyProfileDialogOpen) {
+        // Keep party profile open to see updated stats
+      } else {
+        setDebtsListDialogOpen(true);
+      }
+    } catch (error: any) {
+      console.error("Error paying debt:", error);
+      const errorMessage =
+        error?.message || error?.toString() || "حدث خطأ أثناء الدفع";
+      setSnackbarMessage(errorMessage);
+      setSnackbarOpen(true);
     }
   };
 
@@ -438,43 +731,20 @@ export const ClientProfilePage = () => {
         setEditingPayment(null);
         setSnackbarMessage("تم التعديل بنجاح");
       } else {
-        const newPayment: PaymentType = {
-          id: crypto.randomUUID(),
+      const newPayment: PaymentType = {
+        id: crypto.randomUUID(),
           invoiceId: data.invoiceId || "",
-          clientId: clientId!,
+        clientId: clientId!,
           amount: amount,
-          paymentMethod: data.paymentMethod,
-          paymentDate: data.paymentDate,
+        paymentMethod: data.paymentMethod,
+        paymentDate: data.paymentDate,
           notes: data.notes || "",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-        await addPayment(newPayment);
-
-        // تنقيص الدفعة من الديون النشطة
-        let remainingPayment = amount;
-        const activeDebts = clientDebts.filter((d) => d.status === "active");
-
-        for (const debt of activeDebts) {
-          if (remainingPayment <= 0) break;
-
-          const paymentForThisDebt = Math.min(
-            remainingPayment,
-            debt.remainingAmount
-          );
-          remainingPayment -= paymentForThisDebt;
-
-          const newPaidAmount = debt.paidAmount + paymentForThisDebt;
-          const newRemainingAmount = debt.amount - newPaidAmount;
-
-          await updateStandaloneDebt(debt.id, {
-            paidAmount: newPaidAmount,
-            remainingAmount: newRemainingAmount,
-            status: newRemainingAmount <= 0 ? "paid" : "active",
-          });
-        }
-        setSnackbarMessage("تمت الإضافة بنجاح");
+      await addPayment(newPayment);
+      setSnackbarMessage("تمت الإضافة بنجاح");
       }
       setPaymentDialogOpen(false);
       resetPayment({
@@ -548,40 +818,73 @@ export const ClientProfilePage = () => {
 
   const onSubmitDebt = async (data: any) => {
     try {
+      const amount = parseFloat(data.amount) || 0;
+      if (!data.partyName || !data.description || amount <= 0) {
+        setSnackbarMessage("يرجى ملء جميع الحقول المطلوبة");
+        setSnackbarOpen(true);
+        return;
+      }
+
       if (editingDebt) {
+        // عند التعديل، نحافظ على المبلغ المدفوع الحالي إذا كان المبلغ الجديد أكبر منه
+        // وإلا نعدل المبلغ المدفوع ليكون مساوياً للمبلغ الجديد
+        const newPaidAmount = Math.min(editingDebt.paidAmount, amount);
+        const newRemaining = Math.max(0, amount - newPaidAmount);
         await updateStandaloneDebt(editingDebt.id, {
+          partyId: party?.id || "",
+          partyType: data.partyType || "person",
+          partyName: data.partyName,
           description: data.description,
-          amount: data.amount,
-          remainingAmount: data.amount - editingDebt.paidAmount,
+          amount: amount,
+          paidAmount: newPaidAmount,
+          remainingAmount: newRemaining,
+          status: newRemaining <= 0 ? "paid" : "active",
           date: data.date,
-          notes: data.notes,
+          notes: data.notes || "",
         });
         setEditingDebt(null);
+        setSnackbarMessage("تم التعديل بنجاح");
       } else {
         const newDebt: StandaloneDebt = {
           id: crypto.randomUUID(),
           clientId: clientId!,
+          partyType: data.partyType || "person",
+          partyName: data.partyName,
           description: data.description,
-          amount: data.amount,
+          amount: amount,
           paidAmount: 0,
-          remainingAmount: data.amount,
+          remainingAmount: amount,
           status: "active",
           date: data.date,
-          notes: data.notes,
+          notes: data.notes || "",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         await addStandaloneDebt(newDebt);
+        setSnackbarMessage("تمت الإضافة بنجاح");
       }
       setDebtDialogOpen(false);
-      resetDebt();
-    } catch (error) {
+      resetDebt({
+        partyType: "person",
+        partyName: "",
+        description: "",
+        amount: "" as any,
+        date: dayjs().format("YYYY-MM-DD"),
+        notes: "",
+      });
+      setDebtsListDialogOpen(true);
+      setSnackbarOpen(true);
+    } catch (error: any) {
       console.error("Error saving debt:", error);
+      const errorMessage =
+        error?.message || error?.toString() || "حدث خطأ أثناء الحفظ";
+      setSnackbarMessage(errorMessage);
+      setSnackbarOpen(true);
     }
   };
 
   if (!client) {
-    return (
+  return (
       <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>العميل غير موجود</Typography>
         <Button
@@ -589,8 +892,8 @@ export const ClientProfilePage = () => {
           onClick={() => navigate("/clients")}
           sx={{ mt: 2 }}
         >
-          العودة
-        </Button>
+        العودة
+      </Button>
       </Box>
     );
   }
@@ -629,8 +932,8 @@ export const ClientProfilePage = () => {
   ];
 
   return (
-    <Box
-      sx={{
+                <Box
+                  sx={{
         minHeight: "100vh",
         background: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
         pb: 8,
@@ -661,36 +964,75 @@ export const ClientProfilePage = () => {
             >
               <ArrowBack />
             </IconButton>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ color: "white" }}>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography 
+                variant="h5" 
+                fontWeight={800} 
+                sx={{ 
+                  color: "white",
+                  fontSize: { xs: "1.25rem", sm: "1.5rem" },
+                  mb: 1,
+                  wordBreak: "break-word",
+                }}
+              >
                 {client.name}
               </Typography>
               <Stack
                 direction="row"
                 spacing={1.5}
                 alignItems="center"
-                sx={{ mt: 0.5 }}
+                sx={{ 
+                  mt: 0.5,
+                  flexWrap: "wrap",
+                  gap: 1,
+                }}
               >
-                <Phone sx={{ fontSize: 16, opacity: 0.9, marginLeft: "8px" }} />
-                <Typography
-                  variant="caption"
-                  sx={{ color: "white", opacity: 0.95 }}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.15)",
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius: 2,
+                    backdropFilter: "blur(10px)",
+                  }}
                 >
-                  {client.phone}
-                </Typography>
+                  <Phone sx={{ fontSize: { xs: 16, sm: 18 }, color: "white", opacity: 0.95 }} />
+                  <Typography
+                    variant="body2"
+                    sx={{ 
+                      color: "white", 
+                      fontWeight: 600,
+                      fontSize: { xs: "0.875rem", sm: "0.9375rem" },
+                    }}
+                  >
+                    {client.phone}
+                  </Typography>
+                </Stack>
               </Stack>
             </Box>
-            <Stack direction="row" spacing={1.5}>
+            <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexShrink: 0 }}>
               <IconButton
                 onClick={() => setEditClientDialogOpen(true)}
                 sx={{
                   color: "white",
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
+                  bgcolor: "rgba(255,255,255,0.2)",
+                  width: { xs: 44, sm: 40 },
+                  height: { xs: 44, sm: 40 },
+                  "&:hover": { 
+                    bgcolor: "rgba(255,255,255,0.3)",
+                    transform: "scale(1.05)",
+                  },
+                  "&:active": {
+                    transform: "scale(0.95)",
+                  },
+                  transition: "all 0.2s ease-in-out",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                 }}
-                size="small"
               >
-                <Edit fontSize="small" />
+                <Edit sx={{ fontSize: { xs: 20, sm: 18 } }} />
               </IconButton>
               <IconButton
                 onClick={() => {
@@ -701,19 +1043,28 @@ export const ClientProfilePage = () => {
                 }}
                 sx={{
                   color: "white",
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
+                  bgcolor: "rgba(255,0,0,0.2)",
+                  width: { xs: 44, sm: 40 },
+                  height: { xs: 44, sm: 40 },
+                  "&:hover": { 
+                    bgcolor: "rgba(255,0,0,0.35)",
+                    transform: "scale(1.05)",
+                  },
+                  "&:active": {
+                    transform: "scale(0.95)",
+                  },
+                  transition: "all 0.2s ease-in-out",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
                 }}
-                size="small"
               >
-                <Delete fontSize="small" />
+                <Delete sx={{ fontSize: { xs: 20, sm: 18 } }} />
               </IconButton>
             </Stack>
           </Stack>
 
           {/* Summary Cards */}
           <Grid container spacing={2.5}>
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <Card
                 sx={{
                   borderRadius: 2,
@@ -731,19 +1082,19 @@ export const ClientProfilePage = () => {
                     sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
                   >
                     المصروفات
-                  </Typography>
+                    </Typography>
                   <Typography
                     variant="body2"
                     fontWeight={800}
                     sx={{ mt: 0.5, fontSize: "0.85rem" }}
                   >
                     {formatCurrency(summary.totalExpenses)}
-                  </Typography>
+                    </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+                </Grid>
 
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <Card
                 sx={{
                   borderRadius: 2,
@@ -761,19 +1112,19 @@ export const ClientProfilePage = () => {
                     sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
                   >
                     الديون
-                  </Typography>
+                    </Typography>
                   <Typography
                     variant="body2"
                     fontWeight={800}
                     sx={{ mt: 0.5, fontSize: "0.85rem" }}
                   >
                     {formatCurrency(summary.totalDebts)}
-                  </Typography>
+                    </Typography>
                 </CardContent>
               </Card>
-            </Grid>
+                </Grid>
 
-            <Grid item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <Card
                 sx={{
                   borderRadius: 2,
@@ -785,24 +1136,24 @@ export const ClientProfilePage = () => {
                 }}
               >
                 <CardContent sx={{ p: 2.5, textAlign: "center" }}>
-                  <CheckCircle sx={{ fontSize: 18, mb: 0.5, opacity: 0.9 }} />
+                  <Payment sx={{ fontSize: 18, mb: 0.5, opacity: 0.9 }} />
                   <Typography
                     variant="caption"
                     sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
                   >
                     المدفوع
-                  </Typography>
+                    </Typography>
                   <Typography
                     variant="body2"
                     fontWeight={800}
                     sx={{ mt: 0.5, fontSize: "0.85rem" }}
                   >
                     {formatCurrency(summary.totalPaid)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+                    </Typography>
+        </CardContent>
+      </Card>
+                </Grid>
+              </Grid>
         </Container>
       </Box>
 
@@ -870,10 +1221,10 @@ export const ClientProfilePage = () => {
                         sx={{ mb: 0.5 }}
                       >
                         {item.title}
-                      </Typography>
+              </Typography>
                       <Typography variant="caption" color="text.secondary">
                         اضغط للدخول
-                      </Typography>
+                </Typography>
                     </Box>
                   </Stack>
                   <Box sx={{ flexShrink: 0 }}>
@@ -881,74 +1232,12 @@ export const ClientProfilePage = () => {
                       sx={{ color: "text.secondary", fontSize: 28 }}
                     />
                   </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
-
-        {/* Profits Section */}
-        <Box ref={profitsRef} sx={{ mb: 5 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ mb: 3, px: 0.5 }}>
-            حساب الأرباح
-          </Typography>
-          <Card sx={{ borderRadius: 3 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack spacing={3}>
-                <Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    إجمالي المدفوعات
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight={800}
-                    color="success.main"
-                  >
-                    {formatCurrency(summary.totalPaid)}
-                  </Typography>
-                </Box>
-                <Divider />
-                <Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    إجمالي المصروفات
-                  </Typography>
-                  <Typography variant="h5" fontWeight={800} color="error.main">
-                    {formatCurrency(summary.totalExpenses)}
-                  </Typography>
-                </Box>
-                <Divider />
-                <Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    صافي الأرباح
-                  </Typography>
-                  <Typography
-                    variant="h4"
-                    fontWeight={900}
-                    color={
-                      summary.totalPaid - summary.totalExpenses >= 0
-                        ? "success.main"
-                        : "error.main"
-                    }
-                  >
-                    {formatCurrency(summary.totalPaid - summary.totalExpenses)}
-                  </Typography>
-                </Box>
               </Stack>
             </CardContent>
           </Card>
-        </Box>
+          ))}
+        </Stack>
+
       </Container>
 
       {/* Expenses List Dialog */}
@@ -987,10 +1276,10 @@ export const ClientProfilePage = () => {
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
                 المصروفات ({clientExpenses.length})
-              </Typography>
+            </Typography>
             </Stack>
-            <Button
-              variant="contained"
+              <Button
+                variant="contained"
               onClick={() => {
                 setEditingExpense(null);
                 resetExpense({
@@ -1009,11 +1298,11 @@ export const ClientProfilePage = () => {
                 "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
                 borderRadius: 2,
               }}
-              startIcon={<Add />}
-            >
+                startIcon={<Add />}
+              >
               جديدة
-            </Button>
-          </Stack>
+              </Button>
+            </Stack>
         </Box>
 
         <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
@@ -1063,10 +1352,10 @@ export const ClientProfilePage = () => {
             <Container maxWidth="sm" sx={{ mt: 2 }}>
               <Stack spacing={2.5}>
                 {clientExpenses.map((expense) => (
-                  <Card
+                      <Card
                     key={expense.id}
-                    sx={{
-                      borderRadius: 2.5,
+                        sx={{
+                          borderRadius: 2.5,
                       boxShadow:
                         theme.palette.mode === "light"
                           ? "0 2px 8px rgba(0,0,0,0.06)"
@@ -1089,11 +1378,11 @@ export const ClientProfilePage = () => {
                         spacing={0}
                       >
                         <Avatar
-                          sx={{
+                                  sx={{
                             bgcolor: "error.light",
                             width: 48,
                             height: 48,
-                            flexShrink: 0,
+                                    flexShrink: 0,
                             marginLeft: "24px",
                           }}
                         >
@@ -1102,7 +1391,7 @@ export const ClientProfilePage = () => {
                           />
                         </Avatar>
 
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Stack
                             direction="row"
                             spacing={2}
@@ -1110,8 +1399,8 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             <Typography variant="body2" fontWeight={700} noWrap>
-                              {expense.description}
-                            </Typography>
+                                    {expense.description}
+              </Typography>
                             <Chip
                               label={expense.category}
                               size="small"
@@ -1128,9 +1417,9 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             {dayjs(expense.date).format("DD/MM/YYYY")}
-                          </Typography>
+                                  </Typography>
 
-                          {expense.notes && (
+                                  {expense.notes && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
@@ -1148,17 +1437,17 @@ export const ClientProfilePage = () => {
                                 borderRight: `2px solid ${theme.palette.primary.main}`,
                               }}
                             >
-                              💬 {expense.notes}
-                            </Typography>
-                          )}
+                                      💬 {expense.notes}
+                                    </Typography>
+                                  )}
 
                           <Typography
                             variant="h6"
                             fontWeight={800}
                             color="error.main"
                           >
-                            {formatCurrency(expense.amount)}
-                          </Typography>
+                                    {formatCurrency(expense.amount)}
+                                  </Typography>
                         </Box>
 
                         <Stack
@@ -1166,15 +1455,15 @@ export const ClientProfilePage = () => {
                           spacing={2}
                           sx={{ marginLeft: "8px" }}
                         >
-                          <IconButton
-                            size="small"
+                                    <IconButton
+                                      size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleEditExpense(expense);
                               setExpensesListDialogOpen(false);
                             }}
-                            sx={{
+                                      sx={{ 
                               bgcolor: "primary.main",
                               color: "white",
                               width: 32,
@@ -1183,15 +1472,15 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
-                          </IconButton>
-                          <IconButton
-                            size="small"
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleDeleteExpense(expense.id);
                             }}
-                            sx={{
+                                      sx={{ 
                               bgcolor: "error.main",
                               color: "white",
                               width: 32,
@@ -1200,12 +1489,12 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Delete sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Stack>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
+                                    </IconButton>
+                                </Stack>
+                              </Stack>
+            </CardContent>
+          </Card>
+                        ))}
 
                 {/* Total Summary */}
                 <Card
@@ -1244,7 +1533,7 @@ export const ClientProfilePage = () => {
                       >
                         {formatCurrency(summary.totalExpenses)}
                       </Typography>
-                    </Stack>
+                      </Stack>
                     <Button
                       variant="contained"
                       color="primary"
@@ -1389,7 +1678,7 @@ export const ClientProfilePage = () => {
                     </Button>
                   </CardContent>
                 </Card>
-              </Stack>
+          </Stack>
             </Container>
           )}
         </Box>
@@ -1431,7 +1720,7 @@ export const ClientProfilePage = () => {
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
                 المدفوعات ({clientPayments.length})
-              </Typography>
+            </Typography>
             </Stack>
             <Button
               variant="contained"
@@ -1503,15 +1792,15 @@ export const ClientProfilePage = () => {
                 </Button>
               </Card>
             </Container>
-          ) : (
+            ) : (
             <Container maxWidth="sm" sx={{ mt: 2 }}>
               <Stack spacing={2.5}>
                 {clientPayments.map((payment) => (
-                  <Card
+                <Card
                     key={payment.id}
                     onClick={(e) => e.stopPropagation()}
-                    sx={{
-                      borderRadius: 2.5,
+                  sx={{
+                    borderRadius: 2.5,
                       boxShadow:
                         theme.palette.mode === "light"
                           ? "0 2px 8px rgba(0,0,0,0.06)"
@@ -1533,11 +1822,11 @@ export const ClientProfilePage = () => {
                         spacing={0}
                       >
                         <Avatar
-                          sx={{
+                        sx={{
                             bgcolor: "success.light",
                             width: 48,
                             height: 48,
-                            flexShrink: 0,
+                          flexShrink: 0,
                             marginLeft: "24px",
                           }}
                         >
@@ -1546,7 +1835,7 @@ export const ClientProfilePage = () => {
                           />
                         </Avatar>
 
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Stack
                             direction="row"
                             spacing={2}
@@ -1555,8 +1844,8 @@ export const ClientProfilePage = () => {
                           >
                             <Typography variant="body2" fontWeight={700} noWrap>
                               {getPaymentMethodLabel(payment.paymentMethod)}
-                            </Typography>
-                          </Stack>
+                        </Typography>
+                        </Stack>
 
                           <Typography
                             variant="caption"
@@ -1565,13 +1854,13 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             {dayjs(payment.paymentDate).format("DD/MM/YYYY")}
-                          </Typography>
+                        </Typography>
 
                           {payment.notes && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
-                              sx={{
+                              sx={{ 
                                 mb: 1,
                                 fontStyle: "italic",
                                 lineHeight: 1.6,
@@ -1596,22 +1885,22 @@ export const ClientProfilePage = () => {
                           >
                             {formatCurrency(payment.amount)}
                           </Typography>
-                        </Box>
+                      </Box>
 
                         <Stack
                           direction="row"
                           spacing={2}
                           sx={{ marginLeft: "8px" }}
                         >
-                          <IconButton
-                            size="small"
+                            <IconButton
+                              size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleEditPayment(payment);
                               setPaymentsListDialogOpen(false);
                             }}
-                            sx={{
+                              sx={{ 
                               bgcolor: "primary.main",
                               color: "white",
                               width: 32,
@@ -1620,15 +1909,15 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
-                          </IconButton>
-                          <IconButton
-                            size="small"
+                            </IconButton>
+                            <IconButton
+                              size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleDeletePayment(payment.id);
                             }}
-                            sx={{
+                              sx={{ 
                               bgcolor: "error.main",
                               color: "white",
                               width: 32,
@@ -1637,12 +1926,12 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Delete sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Stack>
+                            </IconButton>
                       </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
 
                 {/* Total Summary */}
                 <Card
@@ -1673,7 +1962,7 @@ export const ClientProfilePage = () => {
                         color="text.primary"
                       >
                         المجموع الكلي
-                      </Typography>
+                        </Typography>
                       <Typography
                         variant="h5"
                         fontWeight={900}
@@ -1682,12 +1971,12 @@ export const ClientProfilePage = () => {
                         {formatCurrency(
                           clientPayments.reduce((sum, p) => sum + p.amount, 0)
                         )}
-                      </Typography>
-                    </Stack>
+                        </Typography>
+                        </Stack>
                     <Button
                       variant="contained"
                       color="success"
-                      fullWidth
+                    fullWidth
                       startIcon={<PictureAsPdf />}
                       onClick={() => {
                         if (!client) return;
@@ -1823,13 +2112,13 @@ export const ClientProfilePage = () => {
                       sx={{ borderRadius: 2, py: 1.5, fontWeight: 700 }}
                     >
                       مشاركة كملف PDF
-                    </Button>
+              </Button>
                   </CardContent>
                 </Card>
-              </Stack>
+            </Stack>
             </Container>
           )}
-        </Box>
+          </Box>
       </Dialog>
 
       {/* Expense Dialog */}
@@ -1842,8 +2131,8 @@ export const ClientProfilePage = () => {
         fullScreen
       >
         <form onSubmit={handleExpenseSubmit(onSubmitExpense)}>
-          <Box
-            sx={{
+                        <Box
+                          sx={{
               background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
               color: "white",
               p: 2,
@@ -1851,7 +2140,7 @@ export const ClientProfilePage = () => {
           >
             <Stack direction="row" alignItems="center" spacing={2}>
               <IconButton
-                onClick={() => {
+                    onClick={() => {
                   setExpenseDialogOpen(false);
                   setEditingExpense(null);
                 }}
@@ -2150,6 +2439,1249 @@ export const ClientProfilePage = () => {
             </Stack>
           </Box>
         </form>
+      </Dialog>
+
+      {/* Debt Dialog */}
+      <Dialog
+        open={debtDialogOpen}
+        onClose={() => {
+          setDebtDialogOpen(false);
+          setEditingDebt(null);
+        }}
+        fullScreen
+      >
+        <form onSubmit={handleDebtSubmit(onSubmitDebt)}>
+          <Box
+            sx={{
+              background:
+                theme.palette.mode === "light"
+                  ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                  : "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+              color: "white",
+              p: 2,
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <IconButton
+                onClick={() => {
+                  setDebtDialogOpen(false);
+                  setEditingDebt(null);
+                }}
+                sx={{ color: "white" }}
+              >
+                <ArrowBack />
+              </IconButton>
+              <Typography variant="h6" fontWeight={700}>
+                {editingDebt ? "تعديل دين" : "إضافة دين جديد"}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: 3.5 }}>
+            <Stack spacing={3.5}>
+              <Controller
+                name="partyType"
+                control={debtControl}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>نوع الطرف</InputLabel>
+                    <Select {...field} label="نوع الطرف" sx={{ borderRadius: 2 }}>
+                      <MenuItem value="person">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Person sx={{ fontSize: 18 }} />
+                          <Typography>شخص</Typography>
+                        </Stack>
+                      </MenuItem>
+                      <MenuItem value="shop">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Store sx={{ fontSize: 18 }} />
+                          <Typography>محل</Typography>
+                        </Stack>
+                      </MenuItem>
+                      <MenuItem value="company">
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Business sx={{ fontSize: 18 }} />
+                          <Typography>شركة</Typography>
+                        </Stack>
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+
+              <Controller
+                name="partyName"
+                control={debtControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="اسم الشخص/المحل/الشركة"
+                    placeholder="مثال: محمد أحمد، محل الأجهزة، شركة البناء"
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="description"
+                control={debtControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="وصف الدين"
+                    placeholder="مثال: دين على مواد بناء"
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="amount"
+                control={debtControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="المبلغ"
+                    type="number"
+                    placeholder="أدخل المبلغ"
+                    value={
+                      field.value === 0 || field.value === "" ? "" : field.value
+                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      field.onChange(value === "" ? "" : value);
+                    }}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="date"
+                control={debtControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="تاريخ الدين"
+                    type="date"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="notes"
+                control={debtControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="ملاحظات"
+                    multiline
+                    rows={3}
+                    placeholder="أي ملاحظات إضافية..."
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+            </Stack>
+
+            <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+              <Button
+                onClick={() => {
+                  setDebtDialogOpen(false);
+                  setEditingDebt(null);
+                }}
+                fullWidth
+                size="large"
+                sx={{ borderRadius: 2, py: 1.5 }}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="warning"
+                fullWidth
+                size="large"
+                sx={{ borderRadius: 2, py: 1.5 }}
+              >
+                {editingDebt ? "حفظ" : "إضافة"}
+              </Button>
+            </Stack>
+          </Box>
+        </form>
+      </Dialog>
+
+      {/* Debts List Dialog */}
+      <Dialog
+        open={debtsListDialogOpen}
+        onClose={() => setDebtsListDialogOpen(false)}
+        fullScreen
+        sx={{
+          "& .MuiDialog-paper": {
+            bgcolor: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
+          },
+        }}
+      >
+          <Box
+            sx={{
+            background:
+              theme.palette.mode === "light"
+                ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                : "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+            color: "white",
+              p: 2,
+            }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <IconButton
+                onClick={() => setDebtsListDialogOpen(false)}
+                sx={{ color: "white" }}
+              >
+                <ArrowBack />
+              </IconButton>
+              <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
+                الديون ({parties.length})
+              </Typography>
+            </Stack>
+            <Button
+              variant="contained"
+              onClick={handleAddParty}
+              sx={{
+                bgcolor: "white",
+                color: "primary.main",
+                fontWeight: 700,
+                "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
+                borderRadius: 2,
+              }}
+              startIcon={<Add />}
+            >
+              إضافة
+            </Button>
+            </Stack>
+          </Box>
+
+        <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
+          {parties.length === 0 ? (
+            <Container maxWidth="sm" sx={{ mt: -2 }}>
+              <Card
+                sx={{
+                  borderRadius: 2.5,
+                  textAlign: "center",
+                  py: 6,
+                  bgcolor: "background.paper",
+                }}
+              >
+                <CreditCard
+                  sx={{
+                    fontSize: 60,
+                    color: "text.secondary",
+                    opacity: 0.3,
+                    mb: 2,
+                  }}
+                />
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                  لا توجد بروفايلات
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  startIcon={<Add />}
+                  onClick={() => {
+                    setEditingDebt(null);
+                    resetDebt({
+                      partyType: "person",
+                      partyName: "",
+                      description: "",
+                      amount: "" as any,
+                      date: dayjs().format("YYYY-MM-DD"),
+                      notes: "",
+                    });
+                    setDebtDialogOpen(true);
+                  }}
+                  sx={{ mt: 2, borderRadius: 2 }}
+                >
+                  إضافة أول دين
+                </Button>
+              </Card>
+            </Container>
+          ) : (
+            <Container maxWidth="sm" sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}>
+              <Stack spacing={{ xs: 2, sm: 2.5 }}>
+                {parties.map((party, index) => (
+                  <Card
+                    key={`${party.type}_${party.name}_${index}`}
+                    onClick={() => handleOpenPartyProfile(party)}
+                    sx={{
+                      borderRadius: { xs: 2.5, sm: 3 },
+                      boxShadow:
+                        theme.palette.mode === "light"
+                          ? "0 2px 12px rgba(0,0,0,0.06)"
+                          : "0 2px 12px rgba(0,0,0,0.3)",
+                      bgcolor: "background.paper",
+                      border:
+                        theme.palette.mode === "dark"
+                          ? "1px solid rgba(255,255,255,0.08)"
+                          : "1px solid rgba(0,0,0,0.05)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease-in-out",
+                      "&:active": {
+                        transform: "scale(0.98)",
+                      },
+                      "@media (hover: hover)": {
+                        "&:hover": {
+                          transform: "translateY(-2px)",
+                          boxShadow:
+                            theme.palette.mode === "light"
+                              ? "0 8px 24px rgba(0,0,0,0.12)"
+                              : "0 8px 24px rgba(0,0,0,0.4)",
+                        },
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 2.5, sm: 3 }, "&:last-child": { pb: { xs: 2.5, sm: 3 } } }}>
+                      <Stack direction="row" alignItems="flex-start" spacing={2}>
+                        <Avatar
+                          sx={{
+                            bgcolor:
+                              party.type === "company"
+                                ? "primary.light"
+                                : party.type === "shop"
+                                ? "secondary.light"
+                                : "warning.light",
+                            width: { xs: 52, sm: 56 },
+                            height: { xs: 52, sm: 56 },
+                            flexShrink: 0,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                        >
+                          {party.type === "company" ? (
+                            <Business
+                              sx={{
+                                color: "primary.main",
+                                fontSize: { xs: 24, sm: 28 },
+                              }}
+                            />
+                          ) : party.type === "shop" ? (
+                            <Store
+                              sx={{
+                                color: "secondary.main",
+                                fontSize: { xs: 24, sm: 28 },
+                              }}
+                            />
+                          ) : (
+                            <Person
+                              sx={{
+                                color: "warning.main",
+                                fontSize: { xs: 24, sm: 28 },
+                              }}
+                            />
+                          )}
+                        </Avatar>
+
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={{ xs: 1, sm: 1.5 }}
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            sx={{ mb: 2 }}
+                            flexWrap="wrap"
+                          >
+                            <Chip
+                              icon={
+                                party.type === "company" ? (
+                                  <Business sx={{ fontSize: 14 }} />
+                                ) : party.type === "shop" ? (
+                                  <Store sx={{ fontSize: 14 }} />
+                                ) : (
+                                  <Person sx={{ fontSize: 14 }} />
+                                )
+                              }
+                              label={
+                                party.type === "company"
+                                  ? "شركة"
+                                  : party.type === "shop"
+                                  ? "محل"
+                                  : "شخص"
+                              }
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ height: 24, fontSize: "0.75rem", fontWeight: 600 }}
+                            />
+                            <Typography 
+                              variant="h6" 
+                              fontWeight={800}
+                              sx={{ 
+                                fontSize: { xs: "1rem", sm: "1.25rem" },
+                                wordBreak: "break-word",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                              }}
+                            >
+                              {party.name}
+                            </Typography>
+                            <Chip
+                              label={`${party.debts.length} دين`}
+                              size="small"
+                              color="info"
+                              sx={{ height: 22, fontSize: "0.7rem" }}
+                            />
+                          </Stack>
+
+                          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: { xs: 1, sm: 1.5 } }}>
+                            <Grid size={{ xs: 4 }}>
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="block"
+                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                >
+                                  إجمالي الدين
+                                </Typography>
+                                <Typography
+                                  variant="body1"
+                                  fontWeight={800}
+                                  color="primary.main"
+                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                >
+                                  {formatCurrency(party.totalAmount)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid size={{ xs: 4 }}>
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="block"
+                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                >
+                                  المدفوع
+                                </Typography>
+                                <Typography
+                                  variant="body1"
+                                  fontWeight={800}
+                                  color="success.main"
+                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                >
+                                  {formatCurrency(party.totalPaid)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid size={{ xs: 4 }}>
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="block"
+                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                >
+                                  المتبقي
+                                </Typography>
+                                <Typography
+                                  variant="body1"
+                                  fontWeight={800}
+                                  color="warning.main"
+                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                >
+                                  {formatCurrency(party.totalRemaining)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Box>
+
+                        <Box sx={{ flexShrink: 0, display: { xs: "none", sm: "block" } }}>
+                          <ChevronLeft
+                            sx={{ color: "text.secondary", fontSize: 28 }}
+                          />
+                        </Box>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+
+              {/* Total Summary */}
+              <Card
+                sx={{
+                  mt: 3,
+                  mb: 2,
+                  borderRadius: 2.5,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(245, 158, 11, 0.1)",
+                  border: `2px solid ${theme.palette.warning.main}`,
+                }}
+              >
+                <CardContent sx={{ p: 3, textAlign: "center" }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    إجمالي الديون
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} color="warning.main">
+                    {formatCurrency(
+                      clientDebts.reduce(
+                        (sum, d) => sum + d.remainingAmount,
+                        0
+                      )
+                    )}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Container>
+          )}
+        </Box>
+      </Dialog>
+
+      {/* Pay Debt Dialog */}
+      <Dialog
+        open={payDebtDialogOpen}
+        onClose={() => {
+          setPayDebtDialogOpen(false);
+          setSelectedDebtForPay(null);
+          setPayDebtAmount("");
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>
+            دفع جزء من الدين
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          {selectedDebtForPay && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Stack spacing={1} sx={{ mb: 2 }}>
+                <Chip
+                  icon={
+                    ((selectedDebtForPay as any).partyType || "person") === "company" ? (
+                      <Business sx={{ fontSize: 14 }} />
+                    ) : ((selectedDebtForPay as any).partyType || "person") === "shop" ? (
+                      <Store sx={{ fontSize: 14 }} />
+                    ) : (
+                      <Person sx={{ fontSize: 14 }} />
+                    )
+                  }
+                  label={
+                    ((selectedDebtForPay as any).partyType || "person") === "company"
+                      ? "شركة"
+                      : ((selectedDebtForPay as any).partyType || "person") === "shop"
+                      ? "محل"
+                      : "شخص"
+                  }
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+                <Typography variant="body1" fontWeight={700}>
+                  {(selectedDebtForPay as any).partyName || "غير محدد"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  الوصف: {selectedDebtForPay.description}
+                </Typography>
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="body2" color="text.secondary">
+                المبلغ الكلي: {formatCurrency(selectedDebtForPay.amount)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                المدفوع: {formatCurrency(selectedDebtForPay.paidAmount)}
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="warning.main">
+                المتبقي: {formatCurrency(selectedDebtForPay.remainingAmount)}
+              </Typography>
+                  <TextField
+                    fullWidth
+                label="المبلغ المدفوع"
+                type="number"
+                value={payDebtAmount}
+                onChange={(e) => setPayDebtAmount(e.target.value)}
+                placeholder={`أقصى مبلغ: ${formatCurrency(selectedDebtForPay.remainingAmount)}`}
+                inputProps={{
+                  max: selectedDebtForPay.remainingAmount,
+                  min: 0,
+                }}
+                sx={{ mt: 2 }}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+              <Button
+                onClick={() => {
+              setPayDebtDialogOpen(false);
+              setSelectedDebtForPay(null);
+              setPayDebtAmount("");
+            }}
+            sx={{ borderRadius: 2 }}
+              >
+                إلغاء
+              </Button>
+              <Button
+            onClick={handlePayDebt}
+                variant="contained"
+            color="success"
+            sx={{ borderRadius: 2 }}
+              >
+            دفع
+              </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Party Dialog */}
+      <Dialog
+        open={partyDialogOpen}
+        onClose={() => {
+          setPartyDialogOpen(false);
+          setEditingParty(null);
+          resetParty({
+            name: "",
+            phone: "",
+            address: "",
+            type: "person",
+          });
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>
+            {editingParty ? "تعديل البروفايل" : "إضافة بروفايل جديد"}
+          </Typography>
+        </DialogTitle>
+        <form onSubmit={handlePartySubmit(onSubmitParty)}>
+          <DialogContent>
+            <Stack spacing={2.5} sx={{ mt: 1 }}>
+              <Controller
+                name="type"
+                control={partyControl}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>نوع البروفايل</InputLabel>
+                    <Select {...field} label="نوع البروفايل" sx={{ borderRadius: 2 }}>
+                      <MenuItem value="person">شخص</MenuItem>
+                      <MenuItem value="shop">محل</MenuItem>
+                      <MenuItem value="company">شركة</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+
+              <Controller
+                name="name"
+                control={partyControl}
+                rules={{ required: "الاسم مطلوب" }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="الاسم"
+                    required
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="phone"
+                control={partyControl}
+                rules={{ required: "رقم الهاتف مطلوب" }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="رقم الهاتف"
+                    required
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="address"
+                control={partyControl}
+                rules={{ required: "العنوان مطلوب" }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="العنوان"
+                    required
+                    multiline
+                    rows={2}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5 }}>
+            <Button
+              onClick={() => {
+                setPartyDialogOpen(false);
+                setEditingParty(null);
+                resetParty({
+                  name: "",
+                  phone: "",
+                  address: "",
+                  type: "person",
+                });
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              إلغاء
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              sx={{ borderRadius: 2 }}
+            >
+              {editingParty ? "حفظ" : "إضافة"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Party Profile Dialog */}
+      <Dialog
+        open={partyProfileDialogOpen}
+        onClose={() => {
+          setPartyProfileDialogOpen(false);
+          setSelectedParty(null);
+        }}
+        fullScreen
+        sx={{
+          "& .MuiDialog-paper": {
+            bgcolor: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            background:
+              theme.palette.mode === "light"
+                ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                : "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+            color: "white",
+            p: 2,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <IconButton
+              onClick={() => {
+                setPartyProfileDialogOpen(false);
+                setSelectedParty(null);
+              }}
+              sx={{ color: "white" }}
+            >
+              <ArrowBack />
+            </IconButton>
+            <Box sx={{ flexGrow: 1 }}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                {selectedParty?.type === "company" ? (
+                  <Business sx={{ fontSize: 28 }} />
+                ) : selectedParty?.type === "shop" ? (
+                  <Store sx={{ fontSize: 28 }} />
+                ) : (
+                  <Person sx={{ fontSize: 28 }} />
+                )}
+                <Typography variant="h5" fontWeight={800}>
+                  {selectedParty?.name}
+                </Typography>
+              </Stack>
+              <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>
+                {selectedParty?.type === "company"
+                  ? "شركة"
+                  : selectedParty?.type === "shop"
+                  ? "محل"
+                  : "شخص"}
+              </Typography>
+            </Box>
+          </Stack>
+
+          {/* Stats Cards */}
+          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 0.5, sm: 0 } }}>
+            <Grid size={{ xs: 4 }}>
+              <Card
+                sx={{
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: { xs: 1.5, sm: 2 },
+                  color: "white",
+                  height: "100%",
+                }}
+              >
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                    إجمالي الدين
+                  </Typography>
+                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                    {formatCurrency(partyStats.totalAmount)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Card
+                sx={{
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: { xs: 1.5, sm: 2 },
+                  color: "white",
+                  height: "100%",
+                }}
+              >
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                    المدفوع
+                  </Typography>
+                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                    {formatCurrency(partyStats.totalPaid)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Card
+                sx={{
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: { xs: 1.5, sm: 2 },
+                  color: "white",
+                  height: "100%",
+                }}
+              >
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                    المتبقي
+                  </Typography>
+                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                    {formatCurrency(partyStats.totalRemaining)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Action Buttons */}
+          <Box sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 } }}>
+            <Stack spacing={{ xs: 1.2, sm: 1.5 }}>
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                startIcon={<Add />}
+                onClick={() => {
+                  if (selectedParty) {
+                    setEditingDebt(null);
+                    resetDebt({
+                      partyType: selectedParty.type,
+                      partyName: selectedParty.name,
+                      description: "",
+                      amount: "" as any,
+                      date: dayjs().format("YYYY-MM-DD"),
+                      notes: "",
+                    });
+                    setDebtDialogOpen(true);
+                    setPartyProfileDialogOpen(false);
+                  }
+                }}
+                sx={{
+                  bgcolor: "white",
+                  color: "primary.main",
+                  fontWeight: 700,
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                  "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
+                  "&:active": { transform: "scale(0.98)" },
+                  borderRadius: { xs: 1.5, sm: 2 },
+                  py: { xs: 1.2, sm: 1.5 },
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                }}
+              >
+                إضافة دين جديد
+              </Button>
+              {partyStats.totalRemaining > 0 && (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  startIcon={<Payment />}
+                  onClick={() => {
+                    // Create a virtual debt for the entire party
+                    const virtualDebt: StandaloneDebt = {
+                      id: `party_${selectedParty?.id}`,
+                      clientId: clientId!,
+                      partyId: selectedParty?.id || "",
+                      partyName: selectedParty?.name || "",
+                      partyType: selectedParty?.type || "person",
+                      description: `إجمالي ديون ${selectedParty?.name}`,
+                      amount: partyStats.totalAmount,
+                      paidAmount: partyStats.totalPaid,
+                      remainingAmount: partyStats.totalRemaining,
+                      status: partyStats.totalRemaining > 0 ? "active" : "paid",
+                      date: dayjs().format("YYYY-MM-DD"),
+                      createdAt: "",
+                      updatedAt: "",
+                    };
+                    setSelectedDebtForPay(virtualDebt);
+                    setPayDebtAmount("");
+                    setPayDebtDialogOpen(true);
+                  }}
+                  sx={{
+                    bgcolor: "white",
+                    color: "warning.main",
+                    fontWeight: 700,
+                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                    "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
+                    "&:active": { transform: "scale(0.98)" },
+                    borderRadius: { xs: 1.5, sm: 2 },
+                    py: { xs: 1.2, sm: 1.5 },
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  }}
+                >
+                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                    دفع من إجمالي الدين ({formatCurrency(partyStats.totalRemaining)})
+                  </Box>
+                  <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                    دفع ({formatCurrency(partyStats.totalRemaining)})
+                  </Box>
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+
+        <Box sx={{ flex: 1, overflowY: "auto", pb: { xs: 2, sm: 3 } }}>
+          <Container maxWidth="sm" sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}>
+            <Typography variant="h6" fontWeight={700} sx={{ mb: { xs: 1.5, sm: 2 }, px: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+              سجل الديون ({partyDebts.length})
+            </Typography>
+
+            {partyDebts.length === 0 ? (
+              <Card
+                sx={{
+                  borderRadius: { xs: 2, sm: 2.5 },
+                  textAlign: "center",
+                  py: { xs: 5, sm: 6 },
+                  bgcolor: "background.paper",
+                }}
+              >
+                <CreditCard
+                  sx={{
+                    fontSize: { xs: 50, sm: 60 },
+                    color: "text.secondary",
+                    opacity: 0.3,
+                    mb: 2,
+                  }}
+                />
+                <Typography variant="h6" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                  لا توجد ديون
+                </Typography>
+              </Card>
+            ) : (
+              <Stack spacing={{ xs: 2, sm: 2.5 }}>
+                {partyDebts.map((debt) => (
+                  <Card
+                    key={debt.id}
+                    sx={{
+                      borderRadius: { xs: 2, sm: 2.5 },
+                      boxShadow:
+                        theme.palette.mode === "light"
+                          ? "0 2px 8px rgba(0,0,0,0.06)"
+                          : "0 2px 8px rgba(0,0,0,0.3)",
+                      bgcolor: "background.paper",
+                      border:
+                        theme.palette.mode === "dark"
+                          ? "1px solid rgba(255,255,255,0.1)"
+                          : "1px solid rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
+                      <Stack direction="row" alignItems="flex-start" spacing={{ xs: 1.5, sm: 2 }}>
+                        <Avatar
+                          sx={{
+                            bgcolor: "warning.light",
+                            width: { xs: 44, sm: 48 },
+                            height: { xs: 44, sm: 48 },
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CreditCard sx={{ color: "warning.main", fontSize: { xs: 18, sm: 20 } }} />
+                        </Avatar>
+
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={{ xs: 0.75, sm: 1.5 }}
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            sx={{ mb: { xs: 1, sm: 1.25 } }}
+                            flexWrap="wrap"
+                          >
+                            <Typography 
+                              variant="body2" 
+                              fontWeight={600}
+                              sx={{ 
+                                fontSize: { xs: "0.875rem", sm: "0.9375rem" },
+                                wordBreak: "break-word",
+                                flex: 1,
+                                minWidth: 0,
+                              }}
+                            >
+                              {debt.description}
+                            </Typography>
+                            <Chip
+                              label={debt.status === "paid" ? "مدفوع" : "نشط"}
+                              size="small"
+                              color={debt.status === "paid" ? "success" : "warning"}
+                              sx={{ height: 20, fontSize: "0.65rem", flexShrink: 0 }}
+                            />
+                          </Stack>
+
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            sx={{ mb: { xs: 1, sm: 1.25 }, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                          >
+                            {dayjs(debt.date).format("DD/MM/YYYY")}
+                          </Typography>
+
+                          {debt.notes && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mb: 1,
+                                fontStyle: "italic",
+                                lineHeight: 1.6,
+                                px: 1,
+                                py: 0.5,
+                                bgcolor:
+                                  theme.palette.mode === "dark"
+                                    ? "rgba(255,255,255,0.05)"
+                                    : "rgba(0,0,0,0.03)",
+                                borderRadius: 1,
+                                borderRight: `2px solid ${theme.palette.warning.main}`,
+                              }}
+                            >
+                              💬 {debt.notes}
+                            </Typography>
+                          )}
+
+                          <Typography 
+                            variant="h6" 
+                            fontWeight={800} 
+                            color="primary.main"
+                            sx={{ fontSize: { xs: "1rem", sm: "1.25rem" }, mb: { xs: 1, sm: 0 } }}
+                          >
+                            {formatCurrency(debt.amount)}
+                          </Typography>
+                        </Box>
+
+                        <Stack 
+                          direction="row" 
+                          spacing={{ xs: 1, sm: 1.5 }} 
+                          sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+                        >
+                          {debt.remainingAmount > 0 && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleOpenPayDebtDialog(debt);
+                              }}
+                              sx={{
+                                bgcolor: "success.main",
+                                color: "white",
+                                width: { xs: 36, sm: 32 },
+                                height: { xs: 36, sm: 32 },
+                                "&:hover": { bgcolor: "success.dark" },
+                                "&:active": { transform: "scale(0.9)" },
+                              }}
+                            >
+                              <Payment sx={{ fontSize: { xs: 18, sm: 16 } }} />
+                            </IconButton>
+                          )}
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditDebt(debt);
+                              setPartyProfileDialogOpen(false);
+                            }}
+                            sx={{
+                              bgcolor: "primary.main",
+                              color: "white",
+                              width: { xs: 36, sm: 32 },
+                              height: { xs: 36, sm: 32 },
+                              "&:hover": { bgcolor: "primary.dark" },
+                              "&:active": { transform: "scale(0.9)" },
+                            }}
+                          >
+                            <Edit sx={{ fontSize: { xs: 18, sm: 16 } }} />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteDebt(debt.id);
+                            }}
+                            sx={{
+                              bgcolor: "error.main",
+                              color: "white",
+                              width: { xs: 36, sm: 32 },
+                              height: { xs: 36, sm: 32 },
+                              "&:hover": { bgcolor: "error.dark" },
+                              "&:active": { transform: "scale(0.9)" },
+                            }}
+                          >
+                            <Delete sx={{ fontSize: { xs: 18, sm: 16 } }} />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            )}
+          </Container>
+        </Box>
+      </Dialog>
+
+      {/* Profit Calculation Dialog */}
+      <Dialog
+        open={profitDialogOpen}
+        onClose={() => setProfitDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
+            color: "white",
+            fontWeight: 800,
+            py: 2.5,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <TrendingUp sx={{ fontSize: 28 }} />
+            <Typography variant="h6" fontWeight={800}>
+              حساب الأرباح
+            </Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={3}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                أدخل النسبة المئوية للأرباح من المصروفات (مثال: 10)
+              </Typography>
+              <TextField
+                fullWidth
+                label="النسبة المئوية (%)"
+                type="number"
+                value={profitPercentage}
+                onChange={(e) => setProfitPercentage(e.target.value)}
+                inputProps={{ min: 0, max: 100, step: 0.1 }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                  },
+                }}
+              />
+            </Box>
+            {profitPercentage && !isNaN(parseFloat(profitPercentage)) && (
+              <Card
+                sx={{
+                  bgcolor: theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.1)" : "#f3f4f6",
+                  border: `2px solid ${theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.3)" : "#e5e7eb"}`,
+                  borderRadius: 2,
+                  p: 2,
+                }}
+              >
+                <Stack spacing={1.5}>
+                  <Typography variant="body2" color="text.secondary">
+                    إجمالي المصروفات للعميل ({client?.name}):
+                  </Typography>
+                  <Typography variant="h6" fontWeight={800} color="primary.main">
+                    {formatCurrency(
+                      clientExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+                    )}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8 }}>
+                    عدد المصروفات: {clientExpenses.length}
+                  </Typography>
+                  <Divider />
+                  <Typography variant="body2" color="text.secondary">
+                    النسبة المئوية: {profitPercentage}%
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} color="success.main">
+                    الأرباح المتوقعة:{" "}
+                    {formatCurrency(
+                      (clientExpenses.reduce((sum, exp) => sum + exp.amount, 0) *
+                        parseFloat(profitPercentage)) /
+                        100
+                    )}
+                  </Typography>
+                </Stack>
+              </Card>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+          <Button
+            onClick={() => setProfitDialogOpen(false)}
+            sx={{ borderRadius: 2 }}
+          >
+            إلغاء
+          </Button>
+          <Button
+            onClick={handleSaveProfitPercentage}
+            variant="contained"
+            sx={{
+              borderRadius: 2,
+              bgcolor: "#8b5cf6",
+              "&:hover": { bgcolor: "#7c3aed" },
+            }}
+          >
+            حفظ
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Snackbar for success message */}

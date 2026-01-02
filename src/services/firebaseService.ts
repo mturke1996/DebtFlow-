@@ -15,7 +15,7 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { Client, Invoice, Payment, Debt, Project, Expense, StandaloneDebt, ExpenseInvoice } from '../types';
+import type { Client, Invoice, Payment, Debt, Project, Expense, StandaloneDebt, ExpenseInvoice, DebtParty } from '../types';
 
 // Generic CRUD operations
 export class FirestoreService<T extends { id: string }> {
@@ -126,6 +126,7 @@ export const projectsService = new FirestoreService<Project>('projects');
 export const expensesService = new FirestoreService<Expense>('expenses');
 export const standaloneDebtsService = new FirestoreService<StandaloneDebt>('standaloneDebts');
 export const expenseInvoicesService = new FirestoreService<ExpenseInvoice>('expenseInvoices');
+export const debtPartiesService = new FirestoreService<DebtParty>('debtParties');
 
 // Special functions for expense invoices
 export async function closeExpensesAndCreateInvoice(
