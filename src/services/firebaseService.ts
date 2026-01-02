@@ -26,10 +26,14 @@ export class FirestoreService<T extends { id: string }> {
       const collectionRef = collection(db, this.collectionName);
       const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef;
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[];
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        // Always use Firestore document id to avoid clashing with any "id" field stored in data
+        return {
+          ...(data as object),
+          id: doc.id,
+        } as T;
+      });
     } catch (error) {
       console.error(`Error getting ${this.collectionName}:`, error);
       throw error;
@@ -53,8 +57,11 @@ export class FirestoreService<T extends { id: string }> {
   async add(data: Omit<T, 'id'>): Promise<string> {
     try {
       const collectionRef = collection(db, this.collectionName);
+      // Strip any provided id so Firestore controls the document id
+      // (defensive in case caller accidentally passes an id field)
+      const { id: _ignoreId, ...rest } = data as any;
       const docRef = await addDoc(collectionRef, {
-        ...data,
+        ...rest,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -97,10 +104,14 @@ export class FirestoreService<T extends { id: string }> {
     const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef;
 
     return onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as T[];
+      const data = snapshot.docs.map((doc) => {
+        const docData = doc.data();
+        // Ensure Firestore doc id overrides any stored "id" field
+        return {
+          ...(docData as object),
+          id: doc.id,
+        } as T;
+      }) as T[];
       callback(data);
     });
   }
