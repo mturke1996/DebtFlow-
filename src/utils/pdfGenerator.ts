@@ -3,13 +3,13 @@ import { formatCurrency } from './calculations';
 import dayjs from 'dayjs';
 
 export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
-  // Company information - يمكن تخصيصها
+  // Company information
   const COMPANY_INFO = {
-    name: 'شركة البناء والتشييد',
-    address: 'الرياض، المملكة العربية السعودية',
-    phone: '+966 50 123 4567',
-    email: 'info@construction.com',
-    taxNumber: '123456789',
+    name: 'المهندس محمد التركي',
+    address: 'تاجوراء شارع اولاد التركي',
+    phone: '0913041404',
+    email: '',
+    taxNumber: '',
   };
 
   // Create a new window for printing
@@ -40,45 +40,57 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         }
         
         body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          background: white;
-          padding: 20px;
+          font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.7;
+          color: #1a1a1a;
+          background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+          padding: 25px;
         }
         
         .invoice-container {
           max-width: 100%;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+          padding: 30px;
         }
         
         .header {
           text-align: center;
-          border-bottom: 3px solid #1976d2;
-          padding-bottom: 15px;
-          margin-bottom: 20px;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+          color: white;
+          padding: 30px 20px;
+          border-radius: 12px;
+          margin-bottom: 30px;
+          box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
         }
         
         .company-name {
-          font-size: 24px;
-          font-weight: bold;
-          color: #1976d2;
-          margin-bottom: 5px;
+          font-size: 32px;
+          font-weight: 900;
+          color: white;
+          margin-bottom: 12px;
+          letter-spacing: 0.5px;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         
         .company-details {
-          font-size: 11px;
-          color: #666;
+          font-size: 14px;
+          color: rgba(255,255,255,0.95);
+          line-height: 1.8;
         }
         
         .invoice-title {
-          background: #1976d2;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
           color: white;
-          padding: 10px;
+          padding: 16px;
           text-align: center;
-          font-size: 18px;
-          font-weight: bold;
-          margin-bottom: 15px;
-          border-radius: 5px;
+          font-size: 22px;
+          font-weight: 800;
+          margin-bottom: 25px;
+          border-radius: 10px;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+          letter-spacing: 1px;
         }
         
         .invoice-info {
@@ -90,17 +102,20 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         
         .info-section {
           flex: 1;
-          background: #f5f5f5;
-          padding: 12px;
-          border-radius: 5px;
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         
         .info-section h3 {
-          font-size: 14px;
-          color: #1976d2;
-          margin-bottom: 8px;
-          border-bottom: 1px solid #ddd;
-          padding-bottom: 5px;
+          font-size: 16px;
+          color: #3b82f6;
+          margin-bottom: 12px;
+          border-bottom: 2px solid #3b82f6;
+          padding-bottom: 8px;
+          font-weight: 800;
         }
         
         .info-row {
@@ -123,24 +138,36 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         }
         
         .items-table thead {
-          background: #1976d2;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
           color: white;
         }
         
         .items-table th {
-          padding: 10px;
+          padding: 16px;
           text-align: right;
-          font-weight: 600;
+          font-weight: 700;
+          font-size: 14px;
+          letter-spacing: 0.5px;
         }
         
         .items-table td {
-          padding: 10px;
-          border-bottom: 1px solid #ddd;
+          padding: 14px 16px;
+          border-bottom: 1px solid #e2e8f0;
           text-align: right;
+          font-size: 13px;
+        }
+        
+        .items-table tbody tr {
+          transition: all 0.2s;
         }
         
         .items-table tbody tr:hover {
-          background: #f5f5f5;
+          background: #f8fafc;
+          transform: scale(1.01);
+        }
+        
+        .items-table tbody tr:nth-child(even) {
+          background: #fafbfc;
         }
         
         .totals-section {
@@ -158,19 +185,18 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         }
         
         .total-row.subtotal {
-          background: #f5f5f5;
-        }
-        
-        .total-row.tax {
-          background: #e3f2fd;
+          background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+          font-weight: 600;
         }
         
         .total-row.final {
-          background: #1976d2;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
           color: white;
-          font-size: 16px;
-          font-weight: bold;
-          border-radius: 5px;
+          font-size: 20px;
+          font-weight: 900;
+          border-radius: 10px;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+          letter-spacing: 0.5px;
         }
         
         .notes-section {
@@ -218,14 +244,14 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
           <div class="company-details">
-            ${COMPANY_INFO.address} • ${COMPANY_INFO.phone} • ${COMPANY_INFO.email}<br>
-            الرقم الضريبي: ${COMPANY_INFO.taxNumber}
+            📍 ${COMPANY_INFO.address}<br>
+            📱 ${COMPANY_INFO.phone}
           </div>
         </div>
         
         <!-- Invoice Title -->
         <div class="invoice-title">
-          فاتورة ضريبية
+          فاتورة
         </div>
         
         <!-- Invoice & Client Info -->
@@ -271,10 +297,10 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         <table class="items-table">
           <thead>
             <tr>
-              <th>الوصف</th>
-              <th style="width: 80px;">الكمية</th>
-              <th style="width: 100px;">السعر</th>
-              <th style="width: 100px;">الإجمالي</th>
+              <th>📋 الوصف</th>
+              <th style="width: 80px;">🔢 الكمية</th>
+              <th style="width: 100px;">💰 السعر</th>
+              <th style="width: 100px;">💵 الإجمالي</th>
             </tr>
           </thead>
           <tbody>
@@ -285,7 +311,7 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
                 <td>${item.description}</td>
                 <td>${item.quantity}</td>
                 <td>${formatCurrency(item.unitPrice)}</td>
-                <td>${formatCurrency(item.total)}</td>
+                <td><strong>${formatCurrency(item.total)}</strong></td>
               </tr>
             `
               )
@@ -295,17 +321,9 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         
         <!-- Totals -->
         <div class="totals-section">
-          <div class="total-row subtotal">
-            <span>المجموع الفرعي:</span>
-            <span>${formatCurrency(invoice.subtotal)}</span>
-          </div>
-          <div class="total-row tax">
-            <span>ضريبة القيمة المضافة (${invoice.taxRate}%):</span>
-            <span>${formatCurrency(invoice.taxAmount)}</span>
-          </div>
           <div class="total-row final">
             <span>الإجمالي:</span>
-            <span>${formatCurrency(invoice.total)}</span>
+            <span>${formatCurrency(invoice.subtotal)}</span>
           </div>
         </div>
         
@@ -323,8 +341,8 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         
         <!-- Footer -->
         <div class="footer">
-          <p>شكراً لتعاملكم معنا</p>
-          <p>هذه فاتورة رسمية معتمدة</p>
+          <p style="font-size: 15px; color: #475569; margin-bottom: 8px;">شكراً لتعاملكم معنا 🙏</p>
+          <p style="font-size: 12px; color: #94a3b8;">هذه فاتورة رسمية معتمدة</p>
         </div>
       </div>
       

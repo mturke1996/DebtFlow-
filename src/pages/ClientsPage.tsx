@@ -351,14 +351,15 @@ export const ClientsPage = () => {
                             handleOpenDialog(client);
                           }}
                           sx={{
-                            bgcolor: 'primary.main',
-                            color: 'white',
+                            bgcolor: 'white',
+                            color: 'primary.main',
                             width: { xs: 44, sm: 40 },
                             height: { xs: 44, sm: 40 },
                             borderRadius: 2,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            border: '1px solid rgba(0,0,0,0.1)',
                             '&:hover': { 
-                              bgcolor: 'primary.dark',
+                              bgcolor: 'rgba(255,255,255,0.95)',
                               transform: 'scale(1.05)',
                             },
                             '&:active': {

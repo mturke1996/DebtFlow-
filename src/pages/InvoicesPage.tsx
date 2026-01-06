@@ -12,6 +12,9 @@ import {
   Chip,
   IconButton,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   FormControl,
   InputLabel,
   Select,
@@ -28,14 +31,13 @@ import {
   PictureAsPdf,
   Receipt,
   Visibility,
-  WhatsApp,
+  Delete,
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import type { Invoice, InvoiceItem } from '@/types';
 import { formatCurrency } from '@/utils/calculations';
 import { generateInvoicePDF } from '@/utils/pdfGenerator';
-import { generateInvoiceWhatsApp } from '@/utils/invoiceWhatsApp';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
 
@@ -44,13 +46,17 @@ dayjs.locale('ar');
 export const InvoicesPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { clients, invoices, addInvoice } = useDataStore();
+  const { clients, invoices, addInvoice, deleteInvoice, addClient } = useDataStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     control,
@@ -60,8 +66,7 @@ export const InvoicesPage = () => {
   } = useForm({
     defaultValues: {
       clientId: '',
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
-      taxRate: 0,
+      items: [{ description: '', quantity: '', unitPrice: '' }],
       notes: '',
       dueDate: dayjs().add(30, 'days').format('YYYY-MM-DD'),
     },
@@ -73,16 +78,18 @@ export const InvoicesPage = () => {
   });
 
   const watchItems = watch('items');
-  const watchTaxRate = watch('taxRate');
 
   const calculatedTotal = useMemo(() => {
     const subtotal = watchItems.reduce(
-      (sum: number, item: any) => sum + (item.quantity || 0) * (item.unitPrice || 0),
+      (sum: number, item: any) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const unitPrice = parseFloat(item.unitPrice) || 0;
+        return sum + (quantity * unitPrice);
+      },
       0
     );
-    const taxAmount = subtotal * ((watchTaxRate || 0) / 100);
-    return { subtotal, taxAmount, total: subtotal + taxAmount };
-  }, [watchItems, watchTaxRate]);
+    return { subtotal, total: subtotal };
+  }, [watchItems]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter((invoice) => {
@@ -98,35 +105,111 @@ export const InvoicesPage = () => {
   const handleOpenDialog = () => {
     reset({
       clientId: '',
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
-      taxRate: 0,
+      items: [{ description: '', quantity: '', unitPrice: '' }],
       notes: '',
       dueDate: dayjs().add(30, 'days').format('YYYY-MM-DD'),
     });
+    setNewClientName('');
+    setNewClientPhone('');
     setDialogOpen(true);
   };
 
-  const onSubmit = async (data: any) => {
+  const handleAddNewClient = async () => {
+    if (!newClientName.trim() || !newClientPhone.trim()) {
+      return;
+    }
     try {
-      const items: InvoiceItem[] = data.items.map((item: any) => ({
+      const newClient: Client = {
         id: crypto.randomUUID(),
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.quantity * item.unitPrice,
-      }));
+        name: newClientName.trim(),
+        phone: newClientPhone.trim(),
+        email: '',
+        address: '',
+        type: 'individual',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await addClient(newClient);
+      // Set the new client as selected
+      reset({
+        ...watch(),
+        clientId: newClient.id,
+      });
+      setNewClientDialogOpen(false);
+      setNewClientName('');
+      setNewClientPhone('');
+    } catch (error) {
+      console.error('Error adding client:', error);
+    }
+  };
 
-      const { subtotal, taxAmount, total } = calculatedTotal;
+  const generateInvoiceNumber = () => {
+    // Get the highest invoice number
+    const invoiceNumbers = invoices
+      .map(inv => {
+        const match = inv.invoiceNumber.match(/^INV(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter(num => num > 0);
+    
+    const nextNumber = invoiceNumbers.length > 0 
+      ? Math.max(...invoiceNumbers) + 1 
+      : 1;
+    
+    // Format as 3 digits with leading zeros
+    return `INV${String(nextNumber).padStart(3, '0')}`;
+  };
+
+  const onSubmit = async (data: any) => {
+    // Prevent double submission
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Filter out items with empty description or invalid quantities/prices
+      const validItems = data.items.filter((item: any) => 
+        item.description?.trim() && 
+        item.quantity && 
+        item.unitPrice &&
+        !isNaN(parseFloat(item.quantity)) &&
+        !isNaN(parseFloat(item.unitPrice))
+      );
+
+      if (validItems.length === 0) {
+        alert('يرجى إضافة عنصر واحد على الأقل مع وصف وكمية وسعر صحيحة');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const items: InvoiceItem[] = validItems.map((item: any) => {
+        const quantity = parseFloat(item.quantity);
+        const unitPrice = parseFloat(item.unitPrice);
+        return {
+          id: crypto.randomUUID(),
+          description: item.description.trim(),
+          quantity: quantity,
+          unitPrice: unitPrice,
+          total: quantity * unitPrice,
+        };
+      });
+
+      const subtotal = items.reduce(
+        (sum: number, item: InvoiceItem) => sum + item.total,
+        0
+      );
 
       const newInvoice: Invoice = {
         id: crypto.randomUUID(),
-        invoiceNumber: `INV-${Date.now()}`,
+        invoiceNumber: generateInvoiceNumber(),
         clientId: data.clientId,
         items,
         subtotal,
-        taxRate: data.taxRate,
-        taxAmount,
-        total,
+        taxRate: 0,
+        taxAmount: 0,
+        total: subtotal,
         status: 'draft',
         issueDate: new Date().toISOString(),
         dueDate: data.dueDate,
@@ -137,8 +220,16 @@ export const InvoicesPage = () => {
       
       await addInvoice(newInvoice);
       setDialogOpen(false);
+      reset({
+        clientId: '',
+        items: [{ description: '', quantity: '', unitPrice: '' }],
+        notes: '',
+        dueDate: dayjs().add(30, 'days').format('YYYY-MM-DD'),
+      });
     } catch (error) {
       console.error('Error saving invoice:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -295,8 +386,8 @@ export const InvoicesPage = () => {
                       العناصر:
                     </Typography>
                     <Stack spacing={1.5} sx={{ mb: 2.5 }}>
-                      {invoice.items.slice(0, 2).map((item) => (
-                        <Stack key={item.id} direction="row" justifyContent="space-between">
+                      {invoice.items.slice(0, 2).map((item, idx) => (
+                        <Stack key={`${invoice.id}-item-${idx}-${item.id}`} direction="row" justifyContent="space-between">
                           <Typography variant="caption">
                             • {item.description} ({item.quantity})
                           </Typography>
@@ -340,18 +431,18 @@ export const InvoicesPage = () => {
                           borderRadius: 1.5,
                           width: 40,
                           height: 40,
-                          marginLeft: '16px',
+                          marginLeft: '8px',
                         }}
                       >
                         <PictureAsPdf fontSize="small" />
                       </IconButton>
                       <IconButton
                         size="small"
-                        color="success"
+                        color="error"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (client) {
-                            generateInvoiceWhatsApp(invoice, client);
+                          if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+                            deleteInvoice(invoice.id);
                           }
                         }}
                         sx={{ 
@@ -361,7 +452,7 @@ export const InvoicesPage = () => {
                           marginLeft: '8px',
                         }}
                       >
-                        <WhatsApp fontSize="small" />
+                        <Delete fontSize="small" />
                       </IconButton>
                     </Stack>
                   </CardContent>
@@ -378,7 +469,10 @@ export const InvoicesPage = () => {
         onClose={() => setDialogOpen(false)}
         fullScreen
       >
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit(onSubmit)(e);
+        }}>
           <Box
             sx={{
               background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
@@ -399,22 +493,33 @@ export const InvoicesPage = () => {
           <Box sx={{ p: 3.5 }}>
             <Stack spacing={3.5}>
               {/* Client Selection */}
-              <Controller
-                name="clientId"
-                control={control}
-                render={({ field }) => (
-                  <FormControl fullWidth>
-                    <InputLabel>العميل</InputLabel>
-                    <Select {...field} label="العميل" sx={{ borderRadius: 2 }}>
-                      {clients.map((client) => (
-                        <MenuItem key={client.id} value={client.id}>
-                          {client.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                )}
-              />
+              <Stack spacing={2}>
+                <Controller
+                  name="clientId"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl fullWidth>
+                      <InputLabel>العميل</InputLabel>
+                      <Select {...field} label="العميل" sx={{ borderRadius: 2 }}>
+                        {clients.map((client) => (
+                          <MenuItem key={client.id} value={client.id}>
+                            {client.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<Add />}
+                  onClick={() => setNewClientDialogOpen(true)}
+                  sx={{ borderRadius: 2, py: 1.5 }}
+                >
+                  إضافة عميل جديد (للفاتورة فقط)
+                </Button>
+              </Stack>
 
               {/* Items */}
               <Typography variant="subtitle1" fontWeight={700}>
@@ -439,7 +544,7 @@ export const InvoicesPage = () => {
                         )}
                       />
                       <Grid container spacing={2.5}>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Controller
                             name={`items.${index}.quantity`}
                             control={control}
@@ -450,12 +555,23 @@ export const InvoicesPage = () => {
                                 label="الكمية"
                                 type="number"
                                 size="small"
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 1)}
+                                placeholder=""
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  field.onChange(value === '' ? '' : value);
+                                }}
+                                sx={{ 
+                                  '& .MuiOutlinedInput-root': { 
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                  } 
+                                }}
                               />
                             )}
                           />
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Controller
                             name={`items.${index}.unitPrice`}
                             control={control}
@@ -466,11 +582,52 @@ export const InvoicesPage = () => {
                                 label="السعر"
                                 type="number"
                                 size="small"
-                                placeholder="1000"
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                placeholder=""
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  field.onChange(value === '' ? '' : value);
+                                }}
+                                sx={{ 
+                                  '& .MuiOutlinedInput-root': { 
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                  } 
+                                }}
                               />
                             )}
                           />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                          <Box
+                            sx={{
+                              bgcolor: theme.palette.mode === 'dark' 
+                                ? 'rgba(99, 102, 241, 0.1)' 
+                                : 'rgba(99, 102, 241, 0.05)',
+                              borderRadius: 2,
+                              p: 1.5,
+                              border: '1px solid',
+                              borderColor: theme.palette.mode === 'dark'
+                                ? 'rgba(99, 102, 241, 0.3)'
+                                : 'rgba(99, 102, 241, 0.2)',
+                            }}
+                          >
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="body2" fontWeight={600} color="text.secondary">
+                                المجموع:
+                              </Typography>
+                              <Typography 
+                                variant="h6" 
+                                fontWeight={800}
+                                color="primary.main"
+                              >
+                                {formatCurrency(
+                                  (parseFloat(watchItems[index]?.quantity) || 0) * 
+                                  (parseFloat(watchItems[index]?.unitPrice) || 0)
+                                )}
+                              </Typography>
+                            </Stack>
+                          </Box>
                         </Grid>
                       </Grid>
                       {fields.length > 1 && (
@@ -489,47 +646,29 @@ export const InvoicesPage = () => {
 
               <Button
                 startIcon={<Add />}
-                onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}
+                onClick={() => append({ description: '', quantity: '', unitPrice: '' })}
                 fullWidth
                 variant="outlined"
-                sx={{ borderRadius: 2 }}
+                sx={{ borderRadius: 2, py: 1.5 }}
               >
-                إضافة عنصر
+                إضافة عنصر جديد
               </Button>
 
-              {/* Tax and Due Date */}
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Controller
-                    name="taxRate"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="الضريبة %"
-                        type="number"
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    )}
+              {/* Due Date */}
+              <Controller
+                name="dueDate"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="تاريخ الاستحقاق"
+                    type="date"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
-                </Grid>
-                <Grid item xs={6}>
-                  <Controller
-                    name="dueDate"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="الاستحقاق"
-                        type="date"
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    )}
-                  />
-                </Grid>
-              </Grid>
+                )}
+              />
 
               {/* Notes */}
               <Controller
@@ -547,33 +686,29 @@ export const InvoicesPage = () => {
               />
 
               {/* Total Summary */}
-              <Card sx={{ borderRadius: 2, bgcolor: 'primary.main', color: 'white' }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        المجموع:
+              <Card sx={{ 
+                borderRadius: 3, 
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                color: 'white',
+                boxShadow: '0 8px 24px rgba(99, 102, 241, 0.3)',
+                border: 'none',
+              }}>
+                <CardContent sx={{ p: 3.5 }}>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body1" fontWeight={700} sx={{ opacity: 0.95 }}>
+                        عدد العناصر:
                       </Typography>
-                      <Typography variant="body2" fontWeight={700}>
-                        {formatCurrency(calculatedTotal.subtotal)}
+                      <Typography variant="body1" fontWeight={800}>
+                        {watchItems.length}
                       </Typography>
                     </Stack>
-                    {calculatedTotal.taxAmount > 0 && (
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                          الضريبة:
-                        </Typography>
-                        <Typography variant="body2" fontWeight={700}>
-                          {formatCurrency(calculatedTotal.taxAmount)}
-                        </Typography>
-                      </Stack>
-                    )}
                     <Divider sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
-                    <Stack direction="row" justifyContent="space-between">
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Typography variant="h6" fontWeight={800}>
                         الإجمالي:
                       </Typography>
-                      <Typography variant="h6" fontWeight={900}>
+                      <Typography variant="h4" fontWeight={900}>
                         {formatCurrency(calculatedTotal.total)}
                       </Typography>
                     </Stack>
@@ -596,14 +731,69 @@ export const InvoicesPage = () => {
                   variant="contained"
                   fullWidth
                   size="large"
+                  disabled={isSubmitting}
                   sx={{ borderRadius: 2, py: 1.5 }}
                 >
-                  إنشاء
+                  {isSubmitting ? 'جاري الإنشاء...' : 'إنشاء'}
                 </Button>
               </Stack>
             </Stack>
           </Box>
         </form>
+      </Dialog>
+
+      {/* Add New Client Dialog */}
+      <Dialog
+        open={newClientDialogOpen}
+        onClose={() => setNewClientDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>
+            إضافة عميل جديد (للفاتورة فقط)
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <TextField
+              fullWidth
+              label="اسم العميل"
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+              placeholder="أدخل اسم العميل"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            <TextField
+              fullWidth
+              label="رقم الهاتف"
+              value={newClientPhone}
+              onChange={(e) => setNewClientPhone(e.target.value)}
+              placeholder="أدخل رقم الهاتف"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5, pt: 0 }}>
+          <Button
+            onClick={() => {
+              setNewClientDialogOpen(false);
+              setNewClientName('');
+              setNewClientPhone('');
+            }}
+            sx={{ borderRadius: 2 }}
+          >
+            إلغاء
+          </Button>
+          <Button
+            onClick={handleAddNewClient}
+            variant="contained"
+            disabled={!newClientName.trim() || !newClientPhone.trim()}
+            sx={{ borderRadius: 2 }}
+          >
+            إضافة
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Preview Dialog */}
@@ -648,23 +838,9 @@ export const InvoicesPage = () => {
                       bgcolor: 'white',
                       color: 'primary.main',
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-                      marginLeft: '16px',
                     }}
                   >
                     PDF
-                  </Button>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<WhatsApp />}
-                    onClick={() => generateInvoiceWhatsApp(selectedInvoice, previewClient)}
-                    sx={{
-                      bgcolor: 'success.main',
-                      color: 'white',
-                      '&:hover': { bgcolor: 'success.dark' },
-                    }}
-                  >
-                    واتساب
                   </Button>
                 </Stack>
               </Box>
@@ -683,7 +859,7 @@ export const InvoicesPage = () => {
                       </Box>
                       
                       <Grid container spacing={2.5}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             العميل
                           </Typography>
@@ -694,7 +870,7 @@ export const InvoicesPage = () => {
                             {previewClient.phone}
                           </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             تاريخ الإصدار
                           </Typography>
@@ -702,7 +878,7 @@ export const InvoicesPage = () => {
                             {dayjs(selectedInvoice.issueDate).format('DD/MM/YYYY')}
                           </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             تاريخ الاستحقاق
                           </Typography>
@@ -710,7 +886,7 @@ export const InvoicesPage = () => {
                             {dayjs(selectedInvoice.dueDate).format('DD/MM/YYYY')}
                           </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                             الحالة
                           </Typography>
@@ -736,8 +912,8 @@ export const InvoicesPage = () => {
                           البنود ({selectedInvoice.items.length})
                         </Typography>
                         <Stack spacing={1}>
-                          {selectedInvoice.items.map((item) => (
-                            <Card key={item.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
+                          {selectedInvoice.items.map((item, idx) => (
+                            <Card key={`${selectedInvoice.id}-preview-item-${idx}-${item.id}`} variant="outlined" sx={{ borderRadius: 1.5 }}>
                               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                                   <Box sx={{ flexGrow: 1 }}>

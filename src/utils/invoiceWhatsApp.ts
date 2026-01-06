@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 
 export const generateInvoiceWhatsApp = (invoice: Invoice, client: Client) => {
   const invoiceText = `
-📄 *فاتورة ضريبية*
+📄 *فاتورة*
 
 *رقم الفاتورة:* ${invoice.invoiceNumber}
 *تاريخ الإصدار:* ${dayjs(invoice.issueDate).format('DD/MM/YYYY')}
@@ -24,9 +24,8 @@ ${invoice.items.map((item, index) => `${index + 1}. ${item.description}
 
 ━━━━━━━━━━━━━━━━━━━━
 
-💰 *الإجماليات:*
-المجموع الفرعي: ${formatCurrency(invoice.subtotal)}
-${invoice.taxAmount > 0 ? `الضريبة (${invoice.taxRate}%): ${formatCurrency(invoice.taxAmount)}\n` : ''}*الإجمالي: ${formatCurrency(invoice.total)}*
+💰 *الإجمالي:*
+*${formatCurrency(invoice.subtotal)}*
 
 ${invoice.notes ? `\n📝 *ملاحظات:*\n${invoice.notes}` : ''}
 

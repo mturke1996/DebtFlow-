@@ -170,13 +170,14 @@ export const HomePage = () => {
                 </Typography>
               </Box>
             </Stack>
-            <Stack direction="row" spacing={0.5}>
+            <Stack direction="row" spacing={1.5}>
               <IconButton
                 onClick={toggleTheme}
                 sx={{
                   color: "white",
                   bgcolor: "rgba(255,255,255,0.15)",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
+                  margin: "8px",
                 }}
                 size="small"
               >
@@ -192,6 +193,7 @@ export const HomePage = () => {
                   color: "white",
                   bgcolor: "rgba(255,255,255,0.15)",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
+                  margin: "8px",
                 }}
                 size="small"
               >

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -23,55 +23,30 @@ import {
   MenuItem,
   Divider,
   useTheme,
-  SpeedDial,
-  SpeedDialAction,
-  SpeedDialIcon,
-  SwipeableDrawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Snackbar,
+  InputAdornment,
+  Alert,
 } from "@mui/material";
 import {
   ArrowBack,
   Payment,
-  AttachMoney,
   Business,
   Person,
   Store,
   ChevronLeft,
   Phone,
-  Email,
-  LocationOn,
   Add,
   TrendingDown,
   TrendingUp,
-  CheckCircle,
-  CalendarMonth,
   Edit,
   Delete,
-  History,
-  ChevronRight,
-  Today,
   CreditCard,
-  Receipt,
-  Description,
   PictureAsPdf,
+  Search,
 } from "@mui/icons-material";
 import { useDataStore } from "@/store/useDataStore";
 import { useForm, Controller } from "react-hook-form";
 import { formatCurrency } from "@/utils/calculations";
-import { generateExpenseInvoicePDF } from "@/utils/pdfGenerator";
-import { CloseExpensesDialog } from "@/components/CloseExpensesDialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import dayjs from "dayjs";
@@ -80,7 +55,6 @@ import type {
   Payment as PaymentType,
   Expense,
   StandaloneDebt,
-  Client,
   DebtParty,
 } from "@/types";
 
@@ -100,13 +74,12 @@ export const ClientProfilePage = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const theme = useTheme();
-  
+
   const {
     clients,
     payments,
     expenses,
     standaloneDebts,
-    expenseInvoices,
     invoices,
     debtParties,
     addPayment,
@@ -120,17 +93,8 @@ export const ClientProfilePage = () => {
     deleteStandaloneDebt,
     addDebtParty,
     updateDebtParty,
-    deleteDebtParty,
-    closeExpensesAndCreateInvoice,
     updateClient,
-    deleteClient,
   } = useDataStore();
-
-  // Refs for scrolling to sections
-  const expensesRef = useRef<HTMLDivElement>(null);
-  const paymentsRef = useRef<HTMLDivElement>(null);
-  const debtsRef = useRef<HTMLDivElement>(null);
-  const profitsRef = useRef<HTMLDivElement>(null);
 
   // Menu items for quick navigation
   const menuItems = [
@@ -159,7 +123,8 @@ export const ClientProfilePage = () => {
       title: "حساب الأرباح",
       icon: TrendingUp,
       color: "#8b5cf6",
-      bgColor: theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.2)" : "#ede9fe",
+      bgColor:
+        theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.2)" : "#ede9fe",
       onClick: () => setProfitDialogOpen(true),
     },
   ];
@@ -168,11 +133,6 @@ export const ClientProfilePage = () => {
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingDebt, setEditingDebt] = useState<StandaloneDebt | null>(null);
-  const [speedDialOpen, setSpeedDialOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [closeExpensesDialogOpen, setCloseExpensesDialogOpen] = useState(false);
-  const [editClientDialogOpen, setEditClientDialogOpen] = useState(false);
   const [expensesListDialogOpen, setExpensesListDialogOpen] = useState(false);
   const [paymentsListDialogOpen, setPaymentsListDialogOpen] = useState(false);
   const [debtsListDialogOpen, setDebtsListDialogOpen] = useState(false);
@@ -180,7 +140,8 @@ export const ClientProfilePage = () => {
     null
   );
   const [payDebtDialogOpen, setPayDebtDialogOpen] = useState(false);
-  const [selectedDebtForPay, setSelectedDebtForPay] = useState<StandaloneDebt | null>(null);
+  const [selectedDebtForPay, setSelectedDebtForPay] =
+    useState<StandaloneDebt | null>(null);
   const [payDebtAmount, setPayDebtAmount] = useState<string>("");
   const [partyProfileDialogOpen, setPartyProfileDialogOpen] = useState(false);
   const [selectedParty, setSelectedParty] = useState<DebtParty | null>(null);
@@ -190,11 +151,13 @@ export const ClientProfilePage = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [profitDialogOpen, setProfitDialogOpen] = useState(false);
   const [profitPercentage, setProfitPercentage] = useState<string>("");
+  const [expensesSearchQuery, setExpensesSearchQuery] = useState("");
+  const [paymentsSearchQuery, setPaymentsSearchQuery] = useState("");
+  const [debtsSearchQuery, setDebtsSearchQuery] = useState("");
+  const [editClientDialogOpen, setEditClientDialogOpen] = useState(false);
 
   const client = clients.find((c) => c.id === clientId);
-  const clientInitial =
-    client?.name?.charAt(0)?.toUpperCase?.() || "ع";
-  
+
   // Client Edit Form
   const {
     control: clientControl,
@@ -214,7 +177,7 @@ export const ClientProfilePage = () => {
 
   // Update form when client changes
   useEffect(() => {
-    if (client) {
+    if (client && editClientDialogOpen) {
       resetClient({
         name: client.name,
         email: client.email,
@@ -223,18 +186,37 @@ export const ClientProfilePage = () => {
         type: client.type,
       });
     }
-  }, [client, resetClient]);
-  
+  }, [client, editClientDialogOpen, resetClient]);
+
+  const onSubmitClient = async (data: ClientFormData) => {
+    if (!clientId) return;
+    try {
+      await updateClient(clientId, data);
+      setSnackbarMessage("تم تحديث بيانات العميل بنجاح");
+      setSnackbarOpen(true);
+      setEditClientDialogOpen(false);
+    } catch (error: any) {
+      setSnackbarMessage(error?.message || "حدث خطأ أثناء التحديث");
+      setSnackbarOpen(true);
+    }
+  };
+
   // Payment Form
   const {
     control: paymentControl,
     handleSubmit: handlePaymentSubmit,
     reset: resetPayment,
     setValue: setPaymentValue,
-  } = useForm({
+  } = useForm<{
+    amount: string | number;
+    paymentMethod: "cash" | "check" | "bank_transfer" | "credit_card";
+    paymentDate: string;
+    invoiceId: string;
+    notes: string;
+  }>({
     defaultValues: {
       amount: "" as any,
-      paymentMethod: "cash" as const,
+      paymentMethod: "cash",
       paymentDate: dayjs().format("YYYY-MM-DD"),
       invoiceId: "",
       notes: "",
@@ -308,32 +290,36 @@ export const ClientProfilePage = () => {
 
   // Load profit percentage for this client from database
   useEffect(() => {
-    if (client) {
-      if (client.profitPercentage !== undefined && client.profitPercentage !== null) {
-        setProfitPercentage(client.profitPercentage.toString());
-      } else {
-        setProfitPercentage("");
-      }
+    if (!client) {
+      setProfitPercentage("");
+      return;
     }
-  }, [client]);
+    const percentage = client.profitPercentage;
+    if (percentage !== undefined && percentage !== null) {
+      setProfitPercentage(percentage.toString());
+    } else {
+      setProfitPercentage("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.id, client?.profitPercentage]);
 
   // Handle save profit percentage for this client
   const handleSaveProfitPercentage = async () => {
     if (!clientId || !client) return;
-    
+
     const percentage = parseFloat(profitPercentage);
     if (isNaN(percentage) || percentage < 0 || percentage > 100) {
       setSnackbarMessage("النسبة يجب أن تكون بين 0 و 100");
       setSnackbarOpen(true);
       return;
     }
-    
+
     try {
       // Save to database
       await updateClient(clientId, {
         profitPercentage: percentage,
       });
-      
+
       // Dispatch custom event to update HomePage
       window.dispatchEvent(new Event("profitPercentageUpdated"));
       setSnackbarMessage("تم حفظ النسبة بنجاح");
@@ -349,7 +335,7 @@ export const ClientProfilePage = () => {
   const clientExpenses = useMemo(
     () =>
       expenses
-      .filter((exp) => exp.clientId === clientId)
+        .filter((exp) => exp.clientId === clientId)
         .sort((a, b) => dayjs(b.createdAt).diff(dayjs(a.createdAt))),
     [expenses, clientId]
   );
@@ -357,18 +343,43 @@ export const ClientProfilePage = () => {
   const clientPayments = useMemo(
     () =>
       payments
-      .filter((pay) => pay.clientId === clientId)
-      .sort((a, b) => dayjs(b.paymentDate).diff(dayjs(a.paymentDate))),
+        .filter((pay) => pay.clientId === clientId)
+        .sort((a, b) => dayjs(b.paymentDate).diff(dayjs(a.paymentDate))),
     [payments, clientId]
   );
 
   const clientDebts = useMemo(
     () =>
       standaloneDebts
-      .filter((debt) => debt.clientId === clientId)
-      .sort((a, b) => dayjs(b.date).diff(dayjs(a.date))),
+        .filter((debt) => debt.clientId === clientId)
+        .sort((a, b) => dayjs(b.date).diff(dayjs(a.date))),
     [standaloneDebts, clientId]
   );
+
+  // Filtered data for search
+  const filteredExpenses = useMemo(() => {
+    if (!expensesSearchQuery) return clientExpenses;
+    const query = expensesSearchQuery.toLowerCase();
+    return clientExpenses.filter(
+      (exp) =>
+        exp.description.toLowerCase().includes(query) ||
+        exp.category.toLowerCase().includes(query) ||
+        exp.notes?.toLowerCase().includes(query) ||
+        formatCurrency(exp.amount).includes(query)
+    );
+  }, [clientExpenses, expensesSearchQuery]);
+
+  const filteredPayments = useMemo(() => {
+    if (!paymentsSearchQuery) return clientPayments;
+    const query = paymentsSearchQuery.toLowerCase();
+    return clientPayments.filter(
+      (pay) =>
+        formatCurrency(pay.amount).includes(query) ||
+        pay.paymentMethod.toLowerCase().includes(query) ||
+        pay.notes?.toLowerCase().includes(query) ||
+        dayjs(pay.paymentDate).format("DD/MM/YYYY").includes(query)
+    );
+  }, [clientPayments, paymentsSearchQuery]);
 
   // Get debt parties for this client
   const clientDebtParties = useMemo(() => {
@@ -377,70 +388,69 @@ export const ClientProfilePage = () => {
 
   // Group debts by party (using debt parties)
   const parties = useMemo(() => {
-    return clientDebtParties.map((party) => {
-      const partyDebts = clientDebts.filter(
-        (d) => (d as any).partyId === party.id || ((d as any).partyName === party.name && (d as any).partyType === party.type)
-      );
-      const totalAmount = partyDebts.reduce((sum, d) => sum + d.amount, 0);
-      const totalPaid = partyDebts.reduce((sum, d) => sum + d.paidAmount, 0);
-      const totalRemaining = partyDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
-      return {
-        ...party,
-        debts: partyDebts,
-        totalAmount,
-        totalPaid,
-        totalRemaining,
-      };
-    }).sort((a, b) => 
-      dayjs(b.createdAt || "").diff(dayjs(a.createdAt || ""))
-    );
+    return clientDebtParties
+      .map((party) => {
+        const partyDebts = clientDebts.filter(
+          (d) =>
+            (d as any).partyId === party.id ||
+            ((d as any).partyName === party.name &&
+              (d as any).partyType === party.type)
+        );
+        const totalAmount = partyDebts.reduce((sum, d) => sum + d.amount, 0);
+        const totalPaid = partyDebts.reduce((sum, d) => sum + d.paidAmount, 0);
+        const totalRemaining = partyDebts.reduce(
+          (sum, d) => sum + d.remainingAmount,
+          0
+        );
+        return {
+          ...party,
+          debts: partyDebts,
+          totalAmount,
+          totalPaid,
+          totalRemaining,
+        };
+      })
+      .sort((a, b) => dayjs(b.createdAt || "").diff(dayjs(a.createdAt || "")));
   }, [clientDebtParties, clientDebts]);
+
+  // Filtered parties based on search
+  const filteredParties = useMemo(() => {
+    if (!debtsSearchQuery) return parties;
+    const query = debtsSearchQuery.toLowerCase();
+    return parties.filter(
+      (party) =>
+        party.name.toLowerCase().includes(query) ||
+        party.phone?.toLowerCase().includes(query) ||
+        party.address?.toLowerCase().includes(query) ||
+        party.debts.some(
+          (debt) =>
+            debt.description?.toLowerCase().includes(query) ||
+            formatCurrency(debt.amount).includes(query) ||
+            formatCurrency(debt.remainingAmount).includes(query)
+        )
+    );
+  }, [parties, debtsSearchQuery]);
 
   // Get debts for selected party
   const partyDebts = useMemo(() => {
     if (!selectedParty) return [];
     return clientDebts.filter(
-      (debt) => (debt as any).partyId === selectedParty.id || 
-        ((debt as any).partyName === selectedParty.name && (debt as any).partyType === selectedParty.type)
+      (debt) =>
+        (debt as any).partyId === selectedParty.id ||
+        ((debt as any).partyName === selectedParty.name &&
+          (debt as any).partyType === selectedParty.type)
     );
   }, [clientDebts, selectedParty]);
 
   const partyStats = useMemo(() => {
     const totalAmount = partyDebts.reduce((sum, d) => sum + d.amount, 0);
     const totalPaid = partyDebts.reduce((sum, d) => sum + d.paidAmount, 0);
-    const totalRemaining = partyDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+    const totalRemaining = partyDebts.reduce(
+      (sum, d) => sum + d.remainingAmount,
+      0
+    );
     return { totalAmount, totalPaid, totalRemaining };
   }, [partyDebts]);
-
-  const clientExpenseInvoices = useMemo(
-    () =>
-      expenseInvoices
-      .filter((inv) => inv.clientId === clientId)
-      .sort((a, b) => dayjs(b.issueDate).diff(dayjs(a.issueDate))),
-    [expenseInvoices, clientId]
-  );
-
-  // Group expenses by date
-  const expensesByDate = useMemo(() => {
-    const grouped = new Map<string, Expense[]>();
-    clientExpenses.forEach((exp) => {
-      const dateKey = dayjs(exp.date).format("YYYY-MM-DD");
-      if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, []);
-      }
-      grouped.get(dateKey)!.push(exp);
-    });
-    return Array.from(grouped.entries()).sort((a, b) =>
-      dayjs(b[0]).diff(dayjs(a[0]))
-    );
-  }, [clientExpenses]);
-
-  // Get expenses for selected month
-  const selectedMonthExpenses = useMemo(() => {
-    return clientExpenses.filter((exp) => 
-      dayjs(exp.date).isSame(selectedDate, "month")
-    );
-  }, [clientExpenses, selectedDate]);
 
   const summary = useMemo(() => {
     const totalExpenses = clientExpenses.reduce(
@@ -453,28 +463,28 @@ export const ClientProfilePage = () => {
     );
     const totalPaid = clientPayments.reduce((sum, pay) => sum + pay.amount, 0);
 
-    console.log("Summary calculation:", {
-      clientId,
-      clientDebtsCount: clientDebts.length,
-      clientDebts: clientDebts.map(d => ({
-        id: d.id,
-        amount: d.amount,
-        paidAmount: d.paidAmount,
-        remainingAmount: d.remainingAmount,
-        status: d.status,
-      })),
-      totalDebts,
-    });
+    // المتبقي = المدفوع - المصروفات
+    const remaining = totalPaid - totalExpenses;
+
+    // نسبة الربح
+    const profitPercentage = client?.profitPercentage || 0;
+    const profit =
+      totalExpenses > 0 && profitPercentage > 0
+        ? (totalExpenses * profitPercentage) / 100
+        : 0;
 
     return {
       totalExpenses,
       totalDebts,
       totalPaid,
+      remaining,
+      profit,
+      profitPercentage,
       expenseCount: clientExpenses.length,
       debtCount: clientDebts.length,
       paymentCount: clientPayments.length,
     };
-  }, [clientExpenses, clientDebts, clientPayments, clientId]);
+  }, [clientExpenses, clientDebts, clientPayments, client]);
 
   const handleEditExpense = (expense: Expense) => {
     console.log("Editing expense:", expense);
@@ -548,32 +558,12 @@ export const ClientProfilePage = () => {
     setPartyDialogOpen(true);
   };
 
-  const handleEditParty = (party: DebtParty) => {
-    setEditingParty(party);
-    setPartyDialogOpen(true);
-  };
-
-  const handleDeleteParty = async (partyId: string) => {
-    if (window.confirm("هل أنت متأكد من حذف هذا البروفايل؟ سيتم حذف جميع الديون المرتبطة به أيضاً.")) {
-      try {
-        // Delete all debts for this party
-        const debtsToDelete = clientDebts.filter((d) => (d as any).partyId === partyId);
-        for (const debt of debtsToDelete) {
-          await deleteStandaloneDebt(debt.id);
-        }
-        // Delete the party
-        await deleteDebtParty(partyId);
-        setSnackbarMessage("تم الحذف بنجاح");
-        setSnackbarOpen(true);
-      } catch (error: any) {
-        console.error("Error deleting party:", error);
-        setSnackbarMessage(error?.message || "حدث خطأ أثناء الحذف");
-        setSnackbarOpen(true);
-      }
-    }
-  };
-
-  const onSubmitParty = async (data: { name: string; phone: string; address: string; type: "person" | "shop" | "company" }) => {
+  const onSubmitParty = async (data: {
+    name: string;
+    phone: string;
+    address: string;
+    type: "person" | "shop" | "company";
+  }) => {
     try {
       if (editingParty) {
         await updateDebtParty(editingParty.id, {
@@ -585,6 +575,7 @@ export const ClientProfilePage = () => {
         setSnackbarMessage("تم التحديث بنجاح");
       } else {
         await addDebtParty({
+          id: crypto.randomUUID(),
           clientId: clientId!,
           name: data.name,
           phone: data.phone,
@@ -608,36 +599,40 @@ export const ClientProfilePage = () => {
   const handlePayDebt = async () => {
     if (!selectedDebtForPay) return;
     const pay = parseFloat(payDebtAmount) || 0;
-    
+
     // Get the latest debt data from clientDebts to ensure we have current values
-    const currentDebt = clientDebts.find(d => d.id === selectedDebtForPay.id);
+    const currentDebt = clientDebts.find((d) => d.id === selectedDebtForPay.id);
     if (!currentDebt && !selectedDebtForPay.id.startsWith("party_")) {
       setSnackbarMessage("الدين غير موجود");
       setSnackbarOpen(true);
       return;
     }
-    
+
     const debtToPay = currentDebt || selectedDebtForPay;
     const maxPayable = debtToPay.remainingAmount;
-    
+
     if (pay <= 0 || pay > maxPayable) {
-      setSnackbarMessage(`المبلغ غير صحيح. الحد الأقصى: ${formatCurrency(maxPayable)}`);
+      setSnackbarMessage(
+        `المبلغ غير صحيح. الحد الأقصى: ${formatCurrency(maxPayable)}`
+      );
       setSnackbarOpen(true);
       return;
     }
-    
+
     try {
       // Check if this is a party-level payment (virtual debt)
       if (selectedDebtForPay.id.startsWith("party_")) {
         // Distribute payment across all debts for this party
         const partyName = selectedDebtForPay.partyName;
         const partyType = selectedDebtForPay.partyType;
-        const partyDebtsToPay = clientDebts.filter(
-          (d) =>
-            ((d as any).partyName || "") === partyName &&
-            ((d as any).partyType || "person") === partyType &&
-            d.remainingAmount > 0
-        ).sort((a, b) => b.remainingAmount - a.remainingAmount); // Pay larger debts first
+        const partyDebtsToPay = clientDebts
+          .filter(
+            (d) =>
+              ((d as any).partyName || "") === partyName &&
+              ((d as any).partyType || "person") === partyType &&
+              d.remainingAmount > 0
+          )
+          .sort((a, b) => b.remainingAmount - a.remainingAmount); // Pay larger debts first
 
         let remainingPay = pay;
         for (const debt of partyDebtsToPay) {
@@ -741,20 +736,20 @@ export const ClientProfilePage = () => {
         setEditingPayment(null);
         setSnackbarMessage("تم التعديل بنجاح");
       } else {
-      const newPayment: PaymentType = {
-        id: crypto.randomUUID(),
+        const newPayment: PaymentType = {
+          id: crypto.randomUUID(),
           invoiceId: data.invoiceId || "",
-        clientId: clientId!,
+          clientId: clientId!,
           amount: amount,
-        paymentMethod: data.paymentMethod,
-        paymentDate: data.paymentDate,
+          paymentMethod: data.paymentMethod,
+          paymentDate: data.paymentDate,
           notes: data.notes || "",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
 
-      await addPayment(newPayment);
-      setSnackbarMessage("تمت الإضافة بنجاح");
+        await addPayment(newPayment);
+        setSnackbarMessage("تمت الإضافة بنجاح");
       }
       setPaymentDialogOpen(false);
       resetPayment({
@@ -840,8 +835,12 @@ export const ClientProfilePage = () => {
         // وإلا نعدل المبلغ المدفوع ليكون مساوياً للمبلغ الجديد
         const newPaidAmount = Math.min(editingDebt.paidAmount, amount);
         const newRemaining = Math.max(0, amount - newPaidAmount);
+        // Find party if exists
+        const existingParty = clientDebtParties.find(
+          (p) => p.name === data.partyName && p.type === data.partyType
+        );
         await updateStandaloneDebt(editingDebt.id, {
-          partyId: party?.id || "",
+          partyId: existingParty?.id || (editingDebt as any).partyId || "",
           partyType: data.partyType || "person",
           partyName: data.partyName,
           description: data.description,
@@ -855,9 +854,14 @@ export const ClientProfilePage = () => {
         setEditingDebt(null);
         setSnackbarMessage("تم التعديل بنجاح");
       } else {
+        // Find party if exists
+        const existingParty = clientDebtParties.find(
+          (p) => p.name === data.partyName && p.type === data.partyType
+        );
         const newDebt: StandaloneDebt = {
           id: crypto.randomUUID(),
           clientId: clientId!,
+          partyId: existingParty?.id || "",
           partyType: data.partyType || "person",
           partyName: data.partyName,
           description: data.description,
@@ -894,7 +898,7 @@ export const ClientProfilePage = () => {
   };
 
   if (!client) {
-  return (
+    return (
       <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>العميل غير موجود</Typography>
         <Button
@@ -902,48 +906,15 @@ export const ClientProfilePage = () => {
           onClick={() => navigate("/clients")}
           sx={{ mt: 2 }}
         >
-        العودة
-      </Button>
+          العودة
+        </Button>
       </Box>
     );
   }
 
-  const actions = [
-    {
-      icon: <AttachMoney />,
-      name: "إضافة مصروف",
-      onClick: () => {
-        setEditingExpense(null);
-        setExpenseDialogOpen(true);
-      },
-      color: theme.palette.primary.main,
-    },
-    {
-      icon: <CreditCard />,
-      name: "تسجيل دين",
-      onClick: () => {
-        setEditingDebt(null);
-        setDebtDialogOpen(true);
-      },
-      color: theme.palette.error.main,
-    },
-    {
-      icon: <Payment />,
-      name: "تسجيل دفعة",
-      onClick: () => setPaymentDialogOpen(true),
-      color: theme.palette.success.main,
-    },
-    {
-      icon: <History />,
-      name: "إغلاق مصروفات",
-      onClick: () => setCloseExpensesDialogOpen(true),
-      color: theme.palette.secondary.main,
-    },
-  ];
-
   return (
-                <Box
-                  sx={{
+    <Box
+      sx={{
         minHeight: "100vh",
         background: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
         pb: 8,
@@ -975,10 +946,10 @@ export const ClientProfilePage = () => {
               <ArrowBack />
             </IconButton>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography 
-                variant="h5" 
-                fontWeight={800} 
-                sx={{ 
+              <Typography
+                variant="h5"
+                fontWeight={800}
+                sx={{
                   color: "white",
                   fontSize: { xs: "1.25rem", sm: "1.5rem" },
                   mb: 1,
@@ -991,7 +962,7 @@ export const ClientProfilePage = () => {
                 direction="row"
                 spacing={1.5}
                 alignItems="center"
-                sx={{ 
+                sx={{
                   mt: 0.5,
                   flexWrap: "wrap",
                   gap: 1,
@@ -1009,11 +980,17 @@ export const ClientProfilePage = () => {
                     backdropFilter: "blur(10px)",
                   }}
                 >
-                  <Phone sx={{ fontSize: { xs: 16, sm: 18 }, color: "white", opacity: 0.95 }} />
+                  <Phone
+                    sx={{
+                      fontSize: { xs: 16, sm: 18 },
+                      color: "white",
+                      opacity: 0.95,
+                    }}
+                  />
                   <Typography
                     variant="body2"
-                    sx={{ 
-                      color: "white", 
+                    sx={{
+                      color: "white",
                       fontWeight: 600,
                       fontSize: { xs: "0.875rem", sm: "0.9375rem" },
                     }}
@@ -1023,7 +1000,11 @@ export const ClientProfilePage = () => {
                 </Stack>
               </Stack>
             </Box>
-            <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} sx={{ flexShrink: 0 }}>
+            <Stack
+              direction="row"
+              spacing={{ xs: 1.5, sm: 2 }}
+              sx={{ flexShrink: 0 }}
+            >
               <IconButton
                 onClick={() => setEditClientDialogOpen(true)}
                 sx={{
@@ -1031,7 +1012,7 @@ export const ClientProfilePage = () => {
                   bgcolor: "rgba(255,255,255,0.2)",
                   width: { xs: 44, sm: 40 },
                   height: { xs: 44, sm: 40 },
-                  "&:hover": { 
+                  "&:hover": {
                     bgcolor: "rgba(255,255,255,0.3)",
                     transform: "scale(1.05)",
                   },
@@ -1044,126 +1025,270 @@ export const ClientProfilePage = () => {
               >
                 <Edit sx={{ fontSize: { xs: 20, sm: 18 } }} />
               </IconButton>
-              <IconButton
-                onClick={() => {
-                  if (window.confirm("هل أنت متأكد من حذف هذا العميل؟")) {
-                    deleteClient(client.id);
-                    navigate("/clients");
-                  }
-                }}
-                sx={{
-                  color: "white",
-                  bgcolor: "rgba(255,0,0,0.2)",
-                  width: { xs: 44, sm: 40 },
-                  height: { xs: 44, sm: 40 },
-                  "&:hover": { 
-                    bgcolor: "rgba(255,0,0,0.35)",
-                    transform: "scale(1.05)",
-                  },
-                  "&:active": {
-                    transform: "scale(0.95)",
-                  },
-                  transition: "all 0.2s ease-in-out",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                }}
-              >
-                <Delete sx={{ fontSize: { xs: 20, sm: 18 } }} />
-              </IconButton>
             </Stack>
           </Stack>
 
           {/* Summary Cards */}
-          <Grid container spacing={2.5}>
-            <Grid size={{ xs: 4 }}>
+          <Grid container spacing={1.5} sx={{ mt: 1.5 }}>
+            <Grid size={{ xs: 6 }}>
               <Card
                 sx={{
-                  borderRadius: 2,
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
+                  borderRadius: 2.5,
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.15) 100%)",
+                  backdropFilter: "blur(20px)",
                   color: "white",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  boxShadow: "none",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                <CardContent sx={{ p: 2.5, textAlign: "center" }}>
-                  <TrendingDown sx={{ fontSize: 18, mb: 0.5, opacity: 0.9 }} />
+                <CardContent
+                  sx={{
+                    p: 1.5,
+                    textAlign: "center",
+                    "&:last-child": { pb: 1.5 },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor: "rgba(255,255,255,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 0.75,
+                    }}
+                  >
+                    <TrendingDown sx={{ fontSize: 18, color: "white" }} />
+                  </Box>
                   <Typography
                     variant="caption"
-                    sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
+                    sx={{
+                      opacity: 0.95,
+                      display: "block",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      mb: 0.25,
+                    }}
                   >
                     المصروفات
-                    </Typography>
+                  </Typography>
                   <Typography
                     variant="body2"
                     fontWeight={800}
-                    sx={{ mt: 0.5, fontSize: "0.85rem" }}
+                    sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
                   >
                     {formatCurrency(summary.totalExpenses)}
-                    </Typography>
+                  </Typography>
                 </CardContent>
               </Card>
-                </Grid>
+            </Grid>
 
-            <Grid size={{ xs: 4 }}>
+            <Grid size={{ xs: 6 }}>
               <Card
                 sx={{
-                  borderRadius: 2,
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
+                  borderRadius: 2.5,
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.15) 100%)",
+                  backdropFilter: "blur(20px)",
                   color: "white",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  boxShadow: "none",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  transition: "all 0.2s ease",
                 }}
               >
-                <CardContent sx={{ p: 2.5, textAlign: "center" }}>
-                  <CreditCard sx={{ fontSize: 18, mb: 0.5, opacity: 0.9 }} />
+                <CardContent
+                  sx={{
+                    p: 1.5,
+                    textAlign: "center",
+                    "&:last-child": { pb: 1.5 },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor: "rgba(255,255,255,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 0.75,
+                    }}
+                  >
+                    <Payment sx={{ fontSize: 18, color: "white" }} />
+                  </Box>
                   <Typography
                     variant="caption"
-                    sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
-                  >
-                    الديون
-                    </Typography>
-                  <Typography
-                    variant="body2"
-                    fontWeight={800}
-                    sx={{ mt: 0.5, fontSize: "0.85rem" }}
-                  >
-                    {formatCurrency(summary.totalDebts)}
-                    </Typography>
-                </CardContent>
-              </Card>
-                </Grid>
-
-            <Grid size={{ xs: 4 }}>
-              <Card
-                sx={{
-                  borderRadius: 2,
-                  bgcolor: "rgba(255,255,255,0.15)",
-                  backdropFilter: "blur(10px)",
-                  color: "white",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  boxShadow: "none",
-                }}
-              >
-                <CardContent sx={{ p: 2.5, textAlign: "center" }}>
-                  <Payment sx={{ fontSize: 18, mb: 0.5, opacity: 0.9 }} />
-                  <Typography
-                    variant="caption"
-                    sx={{ opacity: 0.9, display: "block", fontSize: "0.6rem" }}
+                    sx={{
+                      opacity: 0.95,
+                      display: "block",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      mb: 0.25,
+                    }}
                   >
                     المدفوع
-                    </Typography>
+                  </Typography>
                   <Typography
                     variant="body2"
                     fontWeight={800}
-                    sx={{ mt: 0.5, fontSize: "0.85rem" }}
+                    sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
                   >
                     {formatCurrency(summary.totalPaid)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Card
+                sx={{
+                  borderRadius: 2.5,
+                  background:
+                    summary.remaining >= 0
+                      ? "linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.2) 100%)"
+                      : "linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.2) 100%)",
+                  backdropFilter: "blur(20px)",
+                  color: "white",
+                  border:
+                    summary.remaining >= 0
+                      ? "1px solid rgba(16, 185, 129, 0.4)"
+                      : "1px solid rgba(239, 68, 68, 0.4)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <CardContent
+                  sx={{
+                    p: 1.5,
+                    textAlign: "center",
+                    "&:last-child": { pb: 1.5 },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor:
+                        summary.remaining >= 0
+                          ? "rgba(16, 185, 129, 0.3)"
+                          : "rgba(239, 68, 68, 0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 0.75,
+                    }}
+                  >
+                    {summary.remaining >= 0 ? (
+                      <TrendingUp sx={{ fontSize: 18, color: "white" }} />
+                    ) : (
+                      <TrendingDown sx={{ fontSize: 18, color: "white" }} />
+                    )}
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.95,
+                      display: "block",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      mb: 0.25,
+                    }}
+                  >
+                    المتبقي
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    fontWeight={800}
+                    sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
+                  >
+                    {formatCurrency(summary.remaining)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 6 }}>
+              <Card
+                sx={{
+                  borderRadius: 2.5,
+                  background:
+                    "linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(124, 58, 237, 0.2) 100%)",
+                  backdropFilter: "blur(20px)",
+                  color: "white",
+                  border: "1px solid rgba(139, 92, 246, 0.4)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <CardContent
+                  sx={{
+                    p: 1.5,
+                    textAlign: "center",
+                    "&:last-child": { pb: 1.5 },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor: "rgba(139, 92, 246, 0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mx: "auto",
+                      mb: 0.75,
+                    }}
+                  >
+                    <TrendingUp sx={{ fontSize: 18, color: "white" }} />
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.95,
+                      display: "block",
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      mb: 0.25,
+                    }}
+                  >
+                    نسبة الربح
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    fontWeight={800}
+                    sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
+                  >
+                    {summary.profitPercentage > 0
+                      ? `${summary.profitPercentage}%`
+                      : "غير محدد"}
+                  </Typography>
+                  {summary.profit > 0 && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        opacity: 0.9,
+                        display: "block",
+                        fontSize: "0.6rem",
+                        mt: 0.25,
+                      }}
+                    >
+                      {formatCurrency(summary.profit)}
                     </Typography>
-        </CardContent>
-      </Card>
-                </Grid>
-              </Grid>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Container>
       </Box>
 
@@ -1231,10 +1356,10 @@ export const ClientProfilePage = () => {
                         sx={{ mb: 0.5 }}
                       >
                         {item.title}
-              </Typography>
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
                         اضغط للدخول
-                </Typography>
+                      </Typography>
                     </Box>
                   </Stack>
                   <Box sx={{ flexShrink: 0 }}>
@@ -1242,12 +1367,11 @@ export const ClientProfilePage = () => {
                       sx={{ color: "text.secondary", fontSize: 28 }}
                     />
                   </Box>
-              </Stack>
-            </CardContent>
-          </Card>
+                </Stack>
+              </CardContent>
+            </Card>
           ))}
         </Stack>
-
       </Container>
 
       {/* Expenses List Dialog */}
@@ -1286,10 +1410,10 @@ export const ClientProfilePage = () => {
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
                 المصروفات ({clientExpenses.length})
-            </Typography>
+              </Typography>
             </Stack>
-              <Button
-                variant="contained"
+            <Button
+              variant="contained"
               onClick={() => {
                 setEditingExpense(null);
                 resetExpense({
@@ -1308,15 +1432,39 @@ export const ClientProfilePage = () => {
                 "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
                 borderRadius: 2,
               }}
-                startIcon={<Add />}
-              >
+              startIcon={<Add />}
+            >
               جديدة
-              </Button>
-            </Stack>
+            </Button>
+          </Stack>
+        </Box>
+
+        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="ابحث في المصروفات..."
+            value={expensesSearchQuery}
+            onChange={(e) => setExpensesSearchQuery(e.target.value)}
+            size="small"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                "& fieldset": { border: "none" },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
         </Box>
 
         <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
-          {clientExpenses.length === 0 ? (
+          {filteredExpenses.length === 0 ? (
             <Container maxWidth="sm" sx={{ mt: -2 }}>
               <Card
                 sx={{
@@ -1361,11 +1509,11 @@ export const ClientProfilePage = () => {
           ) : (
             <Container maxWidth="sm" sx={{ mt: 2 }}>
               <Stack spacing={2.5}>
-                {clientExpenses.map((expense) => (
-                      <Card
+                {filteredExpenses.map((expense) => (
+                  <Card
                     key={expense.id}
-                        sx={{
-                          borderRadius: 2.5,
+                    sx={{
+                      borderRadius: 2.5,
                       boxShadow:
                         theme.palette.mode === "light"
                           ? "0 2px 8px rgba(0,0,0,0.06)"
@@ -1388,11 +1536,11 @@ export const ClientProfilePage = () => {
                         spacing={0}
                       >
                         <Avatar
-                                  sx={{
+                          sx={{
                             bgcolor: "error.light",
                             width: 48,
                             height: 48,
-                                    flexShrink: 0,
+                            flexShrink: 0,
                             marginLeft: "24px",
                           }}
                         >
@@ -1401,7 +1549,7 @@ export const ClientProfilePage = () => {
                           />
                         </Avatar>
 
-                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Stack
                             direction="row"
                             spacing={2}
@@ -1409,8 +1557,8 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             <Typography variant="body2" fontWeight={700} noWrap>
-                                    {expense.description}
-              </Typography>
+                              {expense.description}
+                            </Typography>
                             <Chip
                               label={expense.category}
                               size="small"
@@ -1427,9 +1575,9 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             {dayjs(expense.date).format("DD/MM/YYYY")}
-                                  </Typography>
+                          </Typography>
 
-                                  {expense.notes && (
+                          {expense.notes && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
@@ -1447,17 +1595,17 @@ export const ClientProfilePage = () => {
                                 borderRight: `2px solid ${theme.palette.primary.main}`,
                               }}
                             >
-                                      💬 {expense.notes}
-                                    </Typography>
-                                  )}
+                              💬 {expense.notes}
+                            </Typography>
+                          )}
 
                           <Typography
                             variant="h6"
                             fontWeight={800}
                             color="error.main"
                           >
-                                    {formatCurrency(expense.amount)}
-                                  </Typography>
+                            {formatCurrency(expense.amount)}
+                          </Typography>
                         </Box>
 
                         <Stack
@@ -1465,15 +1613,15 @@ export const ClientProfilePage = () => {
                           spacing={2}
                           sx={{ marginLeft: "8px" }}
                         >
-                                    <IconButton
-                                      size="small"
+                          <IconButton
+                            size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleEditExpense(expense);
                               setExpensesListDialogOpen(false);
                             }}
-                                      sx={{ 
+                            sx={{
                               bgcolor: "primary.main",
                               color: "white",
                               width: 32,
@@ -1482,15 +1630,15 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
-                                    </IconButton>
-                                    <IconButton
-                                      size="small"
+                          </IconButton>
+                          <IconButton
+                            size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleDeleteExpense(expense.id);
                             }}
-                                      sx={{ 
+                            sx={{
                               bgcolor: "error.main",
                               color: "white",
                               width: 32,
@@ -1499,12 +1647,12 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Delete sx={{ fontSize: 16 }} />
-                                    </IconButton>
-                                </Stack>
-                              </Stack>
-            </CardContent>
-          </Card>
-                        ))}
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
 
                 {/* Total Summary */}
                 <Card
@@ -1543,7 +1691,7 @@ export const ClientProfilePage = () => {
                       >
                         {formatCurrency(summary.totalExpenses)}
                       </Typography>
-                      </Stack>
+                    </Stack>
                     <Button
                       variant="contained"
                       color="primary"
@@ -1688,7 +1836,7 @@ export const ClientProfilePage = () => {
                     </Button>
                   </CardContent>
                 </Card>
-          </Stack>
+              </Stack>
             </Container>
           )}
         </Box>
@@ -1730,7 +1878,7 @@ export const ClientProfilePage = () => {
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
                 المدفوعات ({clientPayments.length})
-            </Typography>
+              </Typography>
             </Stack>
             <Button
               variant="contained"
@@ -1759,8 +1907,32 @@ export const ClientProfilePage = () => {
           </Stack>
         </Box>
 
+        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="ابحث في المدفوعات..."
+            value={paymentsSearchQuery}
+            onChange={(e) => setPaymentsSearchQuery(e.target.value)}
+            size="small"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                "& fieldset": { border: "none" },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+
         <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
-          {clientPayments.length === 0 ? (
+          {filteredPayments.length === 0 ? (
             <Container maxWidth="sm" sx={{ mt: -2 }}>
               <Card
                 sx={{
@@ -1802,15 +1974,15 @@ export const ClientProfilePage = () => {
                 </Button>
               </Card>
             </Container>
-            ) : (
+          ) : (
             <Container maxWidth="sm" sx={{ mt: 2 }}>
               <Stack spacing={2.5}>
-                {clientPayments.map((payment) => (
-                <Card
+                {filteredPayments.map((payment) => (
+                  <Card
                     key={payment.id}
                     onClick={(e) => e.stopPropagation()}
-                  sx={{
-                    borderRadius: 2.5,
+                    sx={{
+                      borderRadius: 2.5,
                       boxShadow:
                         theme.palette.mode === "light"
                           ? "0 2px 8px rgba(0,0,0,0.06)"
@@ -1832,11 +2004,11 @@ export const ClientProfilePage = () => {
                         spacing={0}
                       >
                         <Avatar
-                        sx={{
+                          sx={{
                             bgcolor: "success.light",
                             width: 48,
                             height: 48,
-                          flexShrink: 0,
+                            flexShrink: 0,
                             marginLeft: "24px",
                           }}
                         >
@@ -1845,7 +2017,7 @@ export const ClientProfilePage = () => {
                           />
                         </Avatar>
 
-                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Stack
                             direction="row"
                             spacing={2}
@@ -1854,8 +2026,8 @@ export const ClientProfilePage = () => {
                           >
                             <Typography variant="body2" fontWeight={700} noWrap>
                               {getPaymentMethodLabel(payment.paymentMethod)}
-                        </Typography>
-                        </Stack>
+                            </Typography>
+                          </Stack>
 
                           <Typography
                             variant="caption"
@@ -1864,13 +2036,13 @@ export const ClientProfilePage = () => {
                             sx={{ mb: 1 }}
                           >
                             {dayjs(payment.paymentDate).format("DD/MM/YYYY")}
-                        </Typography>
+                          </Typography>
 
                           {payment.notes && (
                             <Typography
                               variant="body2"
                               color="text.secondary"
-                              sx={{ 
+                              sx={{
                                 mb: 1,
                                 fontStyle: "italic",
                                 lineHeight: 1.6,
@@ -1895,22 +2067,22 @@ export const ClientProfilePage = () => {
                           >
                             {formatCurrency(payment.amount)}
                           </Typography>
-                      </Box>
+                        </Box>
 
                         <Stack
                           direction="row"
                           spacing={2}
                           sx={{ marginLeft: "8px" }}
                         >
-                            <IconButton
-                              size="small"
+                          <IconButton
+                            size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleEditPayment(payment);
                               setPaymentsListDialogOpen(false);
                             }}
-                              sx={{ 
+                            sx={{
                               bgcolor: "primary.main",
                               color: "white",
                               width: 32,
@@ -1919,15 +2091,15 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Edit sx={{ fontSize: 16 }} />
-                            </IconButton>
-                            <IconButton
-                              size="small"
+                          </IconButton>
+                          <IconButton
+                            size="small"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               handleDeletePayment(payment.id);
                             }}
-                              sx={{ 
+                            sx={{
                               bgcolor: "error.main",
                               color: "white",
                               width: 32,
@@ -1936,12 +2108,12 @@ export const ClientProfilePage = () => {
                             }}
                           >
                             <Delete sx={{ fontSize: 16 }} />
-                            </IconButton>
+                          </IconButton>
+                        </Stack>
                       </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
 
                 {/* Total Summary */}
                 <Card
@@ -1972,7 +2144,7 @@ export const ClientProfilePage = () => {
                         color="text.primary"
                       >
                         المجموع الكلي
-                        </Typography>
+                      </Typography>
                       <Typography
                         variant="h5"
                         fontWeight={900}
@@ -1981,12 +2153,12 @@ export const ClientProfilePage = () => {
                         {formatCurrency(
                           clientPayments.reduce((sum, p) => sum + p.amount, 0)
                         )}
-                        </Typography>
-                        </Stack>
+                      </Typography>
+                    </Stack>
                     <Button
                       variant="contained"
                       color="success"
-                    fullWidth
+                      fullWidth
                       startIcon={<PictureAsPdf />}
                       onClick={() => {
                         if (!client) return;
@@ -2122,13 +2294,13 @@ export const ClientProfilePage = () => {
                       sx={{ borderRadius: 2, py: 1.5, fontWeight: 700 }}
                     >
                       مشاركة كملف PDF
-              </Button>
+                    </Button>
                   </CardContent>
                 </Card>
-            </Stack>
+              </Stack>
             </Container>
           )}
-          </Box>
+        </Box>
       </Dialog>
 
       {/* Expense Dialog */}
@@ -2141,8 +2313,8 @@ export const ClientProfilePage = () => {
         fullScreen
       >
         <form onSubmit={handleExpenseSubmit(onSubmitExpense)}>
-                        <Box
-                          sx={{
+          <Box
+            sx={{
               background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
               color: "white",
               p: 2,
@@ -2150,7 +2322,7 @@ export const ClientProfilePage = () => {
           >
             <Stack direction="row" alignItems="center" spacing={2}>
               <IconButton
-                    onClick={() => {
+                onClick={() => {
                   setExpenseDialogOpen(false);
                   setEditingExpense(null);
                 }}
@@ -2495,7 +2667,11 @@ export const ClientProfilePage = () => {
                 render={({ field }) => (
                   <FormControl fullWidth>
                     <InputLabel>نوع الطرف</InputLabel>
-                    <Select {...field} label="نوع الطرف" sx={{ borderRadius: 2 }}>
+                    <Select
+                      {...field}
+                      label="نوع الطرف"
+                      sx={{ borderRadius: 2 }}
+                    >
                       <MenuItem value="person">
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Person sx={{ fontSize: 18 }} />
@@ -2639,15 +2815,15 @@ export const ClientProfilePage = () => {
           },
         }}
       >
-          <Box
-            sx={{
+        <Box
+          sx={{
             background:
               theme.palette.mode === "light"
                 ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
                 : "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
             color: "white",
-              p: 2,
-            }}
+            p: 2,
+          }}
         >
           <Stack
             direction="row"
@@ -2663,7 +2839,7 @@ export const ClientProfilePage = () => {
                 <ArrowBack />
               </IconButton>
               <Typography variant="h5" fontWeight={800} sx={{ flexGrow: 1 }}>
-                الديون ({parties.length})
+                الديون ({filteredParties.length})
               </Typography>
             </Stack>
             <Button
@@ -2680,22 +2856,56 @@ export const ClientProfilePage = () => {
             >
               إضافة
             </Button>
-            </Stack>
-          </Box>
+          </Stack>
+        </Box>
+
+        <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="ابحث في الديون..."
+            value={debtsSearchQuery}
+            onChange={(e) => setDebtsSearchQuery(e.target.value)}
+            size="small"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "background.paper",
+                borderRadius: 2,
+                "& fieldset": { border: "none" },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
 
         <Box sx={{ flex: 1, overflowY: "auto", pb: 2 }}>
-          {parties.length === 0 ? (
-            <Container maxWidth="sm" sx={{ mt: { xs: 4, sm: 6 }, px: { xs: 1.5, sm: 2 } }}>
+          {filteredParties.length === 0 ? (
+            <Container
+              maxWidth="sm"
+              sx={{ mt: { xs: 4, sm: 6 }, px: { xs: 1.5, sm: 2 } }}
+            >
               <Card
                 sx={{
                   borderRadius: 2.5,
                   textAlign: "center",
                   py: 6,
                   bgcolor: "background.paper",
-                  border: theme.palette.mode === "dark" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.05)",
+                  border:
+                    theme.palette.mode === "dark"
+                      ? "1px solid rgba(255,255,255,0.1)"
+                      : "1px solid rgba(0,0,0,0.05)",
                 }}
               >
-                <Typography variant="h6" color="text.secondary" sx={{ mb: 3, fontWeight: 600 }}>
+                <Typography
+                  variant="h6"
+                  color="text.secondary"
+                  sx={{ mb: 3, fontWeight: 600 }}
+                >
                   لا توجد ديون
                 </Typography>
                 <Button
@@ -2714,8 +2924,8 @@ export const ClientProfilePage = () => {
                     });
                     setDebtDialogOpen(true);
                   }}
-                  sx={{ 
-                    mt: 2, 
+                  sx={{
+                    mt: 2,
                     borderRadius: 2,
                     px: 3,
                     py: 1.5,
@@ -2727,9 +2937,12 @@ export const ClientProfilePage = () => {
               </Card>
             </Container>
           ) : (
-            <Container maxWidth="sm" sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}>
+            <Container
+              maxWidth="sm"
+              sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}
+            >
               <Stack spacing={{ xs: 2, sm: 2.5 }}>
-                {parties.map((party, index) => (
+                {filteredParties.map((party, index) => (
                   <Card
                     key={`${party.type}_${party.name}_${index}`}
                     onClick={() => handleOpenPartyProfile(party)}
@@ -2760,8 +2973,17 @@ export const ClientProfilePage = () => {
                       },
                     }}
                   >
-                    <CardContent sx={{ p: { xs: 2.5, sm: 3 }, "&:last-child": { pb: { xs: 2.5, sm: 3 } } }}>
-                      <Stack direction="row" alignItems="flex-start" spacing={2}>
+                    <CardContent
+                      sx={{
+                        p: { xs: 2.5, sm: 3 },
+                        "&:last-child": { pb: { xs: 2.5, sm: 3 } },
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="flex-start"
+                        spacing={2}
+                      >
                         <Avatar
                           sx={{
                             bgcolor:
@@ -2828,12 +3050,16 @@ export const ClientProfilePage = () => {
                               size="small"
                               color="primary"
                               variant="outlined"
-                              sx={{ height: 24, fontSize: "0.75rem", fontWeight: 600 }}
+                              sx={{
+                                height: 24,
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                              }}
                             />
-                            <Typography 
-                              variant="h6" 
+                            <Typography
+                              variant="h6"
                               fontWeight={800}
-                              sx={{ 
+                              sx={{
                                 fontSize: { xs: "1rem", sm: "1.25rem" },
                                 wordBreak: "break-word",
                                 overflow: "hidden",
@@ -2853,14 +3079,21 @@ export const ClientProfilePage = () => {
                             />
                           </Stack>
 
-                          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: { xs: 1, sm: 1.5 } }}>
+                          <Grid
+                            container
+                            spacing={{ xs: 1.5, sm: 2 }}
+                            sx={{ mt: { xs: 1, sm: 1.5 } }}
+                          >
                             <Grid size={{ xs: 4 }}>
                               <Box>
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
                                   display="block"
-                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                  sx={{
+                                    mb: 0.5,
+                                    fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                                  }}
                                 >
                                   إجمالي الدين
                                 </Typography>
@@ -2868,7 +3101,9 @@ export const ClientProfilePage = () => {
                                   variant="body1"
                                   fontWeight={800}
                                   color="primary.main"
-                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                  sx={{
+                                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                                  }}
                                 >
                                   {formatCurrency(party.totalAmount)}
                                 </Typography>
@@ -2880,7 +3115,10 @@ export const ClientProfilePage = () => {
                                   variant="caption"
                                   color="text.secondary"
                                   display="block"
-                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                  sx={{
+                                    mb: 0.5,
+                                    fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                                  }}
                                 >
                                   المدفوع
                                 </Typography>
@@ -2888,7 +3126,9 @@ export const ClientProfilePage = () => {
                                   variant="body1"
                                   fontWeight={800}
                                   color="success.main"
-                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                  sx={{
+                                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                                  }}
                                 >
                                   {formatCurrency(party.totalPaid)}
                                 </Typography>
@@ -2900,7 +3140,10 @@ export const ClientProfilePage = () => {
                                   variant="caption"
                                   color="text.secondary"
                                   display="block"
-                                  sx={{ mb: 0.5, fontSize: { xs: "0.65rem", sm: "0.75rem" } }}
+                                  sx={{
+                                    mb: 0.5,
+                                    fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                                  }}
                                 >
                                   المتبقي
                                 </Typography>
@@ -2908,7 +3151,9 @@ export const ClientProfilePage = () => {
                                   variant="body1"
                                   fontWeight={800}
                                   color="warning.main"
-                                  sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                                  sx={{
+                                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                                  }}
                                 >
                                   {formatCurrency(party.totalRemaining)}
                                 </Typography>
@@ -2917,7 +3162,12 @@ export const ClientProfilePage = () => {
                           </Grid>
                         </Box>
 
-                        <Box sx={{ flexShrink: 0, display: { xs: "none", sm: "block" } }}>
+                        <Box
+                          sx={{
+                            flexShrink: 0,
+                            display: { xs: "none", sm: "block" },
+                          }}
+                        >
                           <ChevronLeft
                             sx={{ color: "text.secondary", fontSize: 28 }}
                           />
@@ -2949,12 +3199,13 @@ export const ClientProfilePage = () => {
                   >
                     إجمالي الديون
                   </Typography>
-                  <Typography variant="h5" fontWeight={900} color="warning.main">
+                  <Typography
+                    variant="h5"
+                    fontWeight={900}
+                    color="warning.main"
+                  >
                     {formatCurrency(
-                      clientDebts.reduce(
-                        (sum, d) => sum + d.remainingAmount,
-                        0
-                      )
+                      clientDebts.reduce((sum, d) => sum + d.remainingAmount, 0)
                     )}
                   </Typography>
                 </CardContent>
@@ -2986,18 +3237,22 @@ export const ClientProfilePage = () => {
               <Stack spacing={1} sx={{ mb: 2 }}>
                 <Chip
                   icon={
-                    ((selectedDebtForPay as any).partyType || "person") === "company" ? (
+                    ((selectedDebtForPay as any).partyType || "person") ===
+                    "company" ? (
                       <Business sx={{ fontSize: 14 }} />
-                    ) : ((selectedDebtForPay as any).partyType || "person") === "shop" ? (
+                    ) : ((selectedDebtForPay as any).partyType || "person") ===
+                      "shop" ? (
                       <Store sx={{ fontSize: 14 }} />
                     ) : (
                       <Person sx={{ fontSize: 14 }} />
                     )
                   }
                   label={
-                    ((selectedDebtForPay as any).partyType || "person") === "company"
+                    ((selectedDebtForPay as any).partyType || "person") ===
+                    "company"
                       ? "شركة"
-                      : ((selectedDebtForPay as any).partyType || "person") === "shop"
+                      : ((selectedDebtForPay as any).partyType || "person") ===
+                        "shop"
                       ? "محل"
                       : "شخص"
                   }
@@ -3022,13 +3277,15 @@ export const ClientProfilePage = () => {
               <Typography variant="body2" fontWeight={700} color="warning.main">
                 المتبقي: {formatCurrency(selectedDebtForPay.remainingAmount)}
               </Typography>
-                  <TextField
-                    fullWidth
+              <TextField
+                fullWidth
                 label="المبلغ المدفوع"
                 type="number"
                 value={payDebtAmount}
                 onChange={(e) => setPayDebtAmount(e.target.value)}
-                placeholder={`أقصى مبلغ: ${formatCurrency(selectedDebtForPay.remainingAmount)}`}
+                placeholder={`أقصى مبلغ: ${formatCurrency(
+                  selectedDebtForPay.remainingAmount
+                )}`}
                 inputProps={{
                   max: selectedDebtForPay.remainingAmount,
                   min: 0,
@@ -3039,24 +3296,24 @@ export const ClientProfilePage = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
-              <Button
-                onClick={() => {
+          <Button
+            onClick={() => {
               setPayDebtDialogOpen(false);
               setSelectedDebtForPay(null);
               setPayDebtAmount("");
             }}
             sx={{ borderRadius: 2 }}
-              >
-                إلغاء
-              </Button>
-              <Button
+          >
+            إلغاء
+          </Button>
+          <Button
             onClick={handlePayDebt}
-                variant="contained"
+            variant="contained"
             color="success"
             sx={{ borderRadius: 2 }}
-              >
+          >
             دفع
-              </Button>
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -3090,7 +3347,11 @@ export const ClientProfilePage = () => {
                 render={({ field }) => (
                   <FormControl fullWidth>
                     <InputLabel>نوع البروفايل</InputLabel>
-                    <Select {...field} label="نوع البروفايل" sx={{ borderRadius: 2 }}>
+                    <Select
+                      {...field}
+                      label="نوع البروفايل"
+                      sx={{ borderRadius: 2 }}
+                    >
                       <MenuItem value="person">شخص</MenuItem>
                       <MenuItem value="shop">محل</MenuItem>
                       <MenuItem value="company">شركة</MenuItem>
@@ -3233,7 +3494,11 @@ export const ClientProfilePage = () => {
           </Stack>
 
           {/* Stats Cards */}
-          <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 0.5, sm: 0 } }}>
+          <Grid
+            container
+            spacing={{ xs: 1.5, sm: 2 }}
+            sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 0.5, sm: 0 } }}
+          >
             <Grid size={{ xs: 4 }}>
               <Card
                 sx={{
@@ -3245,11 +3510,31 @@ export const ClientProfilePage = () => {
                   height: "100%",
                 }}
               >
-                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                <CardContent
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    textAlign: "center",
+                    "&:last-child": { pb: { xs: 1.5, sm: 2 } },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.9,
+                      fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                      display: "block",
+                    }}
+                  >
                     إجمالي الدين
                   </Typography>
-                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    sx={{
+                      mt: 0.5,
+                      fontSize: { xs: "0.875rem", sm: "1.25rem" },
+                    }}
+                  >
                     {formatCurrency(partyStats.totalAmount)}
                   </Typography>
                 </CardContent>
@@ -3266,11 +3551,31 @@ export const ClientProfilePage = () => {
                   height: "100%",
                 }}
               >
-                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                <CardContent
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    textAlign: "center",
+                    "&:last-child": { pb: { xs: 1.5, sm: 2 } },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.9,
+                      fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                      display: "block",
+                    }}
+                  >
                     المدفوع
                   </Typography>
-                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    sx={{
+                      mt: 0.5,
+                      fontSize: { xs: "0.875rem", sm: "1.25rem" },
+                    }}
+                  >
                     {formatCurrency(partyStats.totalPaid)}
                   </Typography>
                 </CardContent>
@@ -3287,11 +3592,31 @@ export const ClientProfilePage = () => {
                   height: "100%",
                 }}
               >
-                <CardContent sx={{ p: { xs: 1.5, sm: 2 }, textAlign: "center", "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: { xs: "0.65rem", sm: "0.7rem" }, display: "block" }}>
+                <CardContent
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    textAlign: "center",
+                    "&:last-child": { pb: { xs: 1.5, sm: 2 } },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      opacity: 0.9,
+                      fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                      display: "block",
+                    }}
+                  >
                     المتبقي
                   </Typography>
-                  <Typography variant="h6" fontWeight={800} sx={{ mt: 0.5, fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    sx={{
+                      mt: 0.5,
+                      fontSize: { xs: "0.875rem", sm: "1.25rem" },
+                    }}
+                  >
                     {formatCurrency(partyStats.totalRemaining)}
                   </Typography>
                 </CardContent>
@@ -3300,7 +3625,13 @@ export const ClientProfilePage = () => {
           </Grid>
 
           {/* Action Buttons */}
-          <Box sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 }, pb: { xs: 1, sm: 1.5 } }}>
+          <Box
+            sx={{
+              mt: { xs: 1.5, sm: 2 },
+              px: { xs: 1.5, sm: 2 },
+              pb: { xs: 1, sm: 1.5 },
+            }}
+          >
             <Stack spacing={{ xs: 1.2, sm: 1.5 }}>
               <Button
                 variant="contained"
@@ -3375,10 +3706,17 @@ export const ClientProfilePage = () => {
                     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   }}
                 >
-                  <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                    دفع من إجمالي الدين ({formatCurrency(partyStats.totalRemaining)})
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "none", sm: "inline" } }}
+                  >
+                    دفع من إجمالي الدين (
+                    {formatCurrency(partyStats.totalRemaining)})
                   </Box>
-                  <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "inline", sm: "none" } }}
+                  >
                     دفع ({formatCurrency(partyStats.totalRemaining)})
                   </Box>
                 </Button>
@@ -3388,8 +3726,19 @@ export const ClientProfilePage = () => {
         </Box>
 
         <Box sx={{ flex: 1, overflowY: "auto", pb: { xs: 2, sm: 3 } }}>
-          <Container maxWidth="sm" sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}>
-            <Typography variant="h6" fontWeight={700} sx={{ mb: { xs: 1.5, sm: 2 }, px: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+          <Container
+            maxWidth="sm"
+            sx={{ mt: { xs: 1.5, sm: 2 }, px: { xs: 1.5, sm: 2 } }}
+          >
+            <Typography
+              variant="h6"
+              fontWeight={700}
+              sx={{
+                mb: { xs: 1.5, sm: 2 },
+                px: 0.5,
+                fontSize: { xs: "1rem", sm: "1.25rem" },
+              }}
+            >
               سجل الديون ({partyDebts.length})
             </Typography>
 
@@ -3410,7 +3759,11 @@ export const ClientProfilePage = () => {
                     mb: 2,
                   }}
                 />
-                <Typography variant="h6" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}>
+                <Typography
+                  variant="h6"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: "0.875rem", sm: "1.25rem" } }}
+                >
                   لا توجد ديون
                 </Typography>
               </Card>
@@ -3432,8 +3785,17 @@ export const ClientProfilePage = () => {
                           : "1px solid rgba(0,0,0,0.05)",
                     }}
                   >
-                    <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
-                      <Stack direction="row" alignItems="flex-start" spacing={{ xs: 1.5, sm: 2 }}>
+                    <CardContent
+                      sx={{
+                        p: { xs: 2, sm: 2.5 },
+                        "&:last-child": { pb: { xs: 2, sm: 2.5 } },
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        alignItems="flex-start"
+                        spacing={{ xs: 1.5, sm: 2 }}
+                      >
                         <Avatar
                           sx={{
                             bgcolor: "warning.light",
@@ -3442,7 +3804,12 @@ export const ClientProfilePage = () => {
                             flexShrink: 0,
                           }}
                         >
-                          <CreditCard sx={{ color: "warning.main", fontSize: { xs: 18, sm: 20 } }} />
+                          <CreditCard
+                            sx={{
+                              color: "warning.main",
+                              fontSize: { xs: 18, sm: 20 },
+                            }}
+                          />
                         </Avatar>
 
                         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -3453,10 +3820,10 @@ export const ClientProfilePage = () => {
                             sx={{ mb: { xs: 1, sm: 1.25 } }}
                             flexWrap="wrap"
                           >
-                            <Typography 
-                              variant="body2" 
+                            <Typography
+                              variant="body2"
                               fontWeight={600}
-                              sx={{ 
+                              sx={{
                                 fontSize: { xs: "0.875rem", sm: "0.9375rem" },
                                 wordBreak: "break-word",
                                 flex: 1,
@@ -3468,8 +3835,14 @@ export const ClientProfilePage = () => {
                             <Chip
                               label={debt.status === "paid" ? "مدفوع" : "نشط"}
                               size="small"
-                              color={debt.status === "paid" ? "success" : "warning"}
-                              sx={{ height: 20, fontSize: "0.65rem", flexShrink: 0 }}
+                              color={
+                                debt.status === "paid" ? "success" : "warning"
+                              }
+                              sx={{
+                                height: 20,
+                                fontSize: "0.65rem",
+                                flexShrink: 0,
+                              }}
                             />
                           </Stack>
 
@@ -3477,7 +3850,10 @@ export const ClientProfilePage = () => {
                             variant="caption"
                             color="text.secondary"
                             display="block"
-                            sx={{ mb: { xs: 1, sm: 1.25 }, fontSize: { xs: "0.7rem", sm: "0.75rem" } }}
+                            sx={{
+                              mb: { xs: 1, sm: 1.25 },
+                              fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                            }}
                           >
                             {dayjs(debt.date).format("DD/MM/YYYY")}
                           </Typography>
@@ -3504,20 +3880,26 @@ export const ClientProfilePage = () => {
                             </Typography>
                           )}
 
-                          <Typography 
-                            variant="h6" 
-                            fontWeight={800} 
+                          <Typography
+                            variant="h6"
+                            fontWeight={800}
                             color="primary.main"
-                            sx={{ fontSize: { xs: "1rem", sm: "1.25rem" }, mb: { xs: 1, sm: 0 } }}
+                            sx={{
+                              fontSize: { xs: "1rem", sm: "1.25rem" },
+                              mb: { xs: 1, sm: 0 },
+                            }}
                           >
                             {formatCurrency(debt.amount)}
                           </Typography>
                         </Box>
 
-                        <Stack 
-                          direction="row" 
-                          spacing={{ xs: 1, sm: 1.5 }} 
-                          sx={{ flexShrink: 0, alignSelf: { xs: "flex-start", sm: "center" } }}
+                        <Stack
+                          direction="row"
+                          spacing={{ xs: 1, sm: 1.5 }}
+                          sx={{
+                            flexShrink: 0,
+                            alignSelf: { xs: "flex-start", sm: "center" },
+                          }}
                         >
                           {debt.remainingAmount > 0 && (
                             <IconButton
@@ -3617,7 +3999,11 @@ export const ClientProfilePage = () => {
         <DialogContent sx={{ pt: 3 }}>
           <Stack spacing={3}>
             <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 1.5 }}
+              >
                 أدخل النسبة المئوية للأرباح من المصروفات (مثال: 10)
               </Typography>
               <TextField
@@ -3637,8 +4023,15 @@ export const ClientProfilePage = () => {
             {profitPercentage && !isNaN(parseFloat(profitPercentage)) && (
               <Card
                 sx={{
-                  bgcolor: theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.1)" : "#f3f4f6",
-                  border: `2px solid ${theme.palette.mode === "dark" ? "rgba(139, 92, 246, 0.3)" : "#e5e7eb"}`,
+                  bgcolor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(139, 92, 246, 0.1)"
+                      : "#f3f4f6",
+                  border: `2px solid ${
+                    theme.palette.mode === "dark"
+                      ? "rgba(139, 92, 246, 0.3)"
+                      : "#e5e7eb"
+                  }`,
                   borderRadius: 2,
                   p: 2,
                 }}
@@ -3647,22 +4040,37 @@ export const ClientProfilePage = () => {
                   <Typography variant="body2" color="text.secondary">
                     إجمالي المصروفات للعميل ({client?.name}):
                   </Typography>
-                  <Typography variant="h6" fontWeight={800} color="primary.main">
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    color="primary.main"
+                  >
                     {formatCurrency(
                       clientExpenses.reduce((sum, exp) => sum + exp.amount, 0)
                     )}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.8 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ opacity: 0.8 }}
+                  >
                     عدد المصروفات: {clientExpenses.length}
                   </Typography>
                   <Divider />
                   <Typography variant="body2" color="text.secondary">
                     النسبة المئوية: {profitPercentage}%
                   </Typography>
-                  <Typography variant="h5" fontWeight={900} color="success.main">
+                  <Typography
+                    variant="h5"
+                    fontWeight={900}
+                    color="success.main"
+                  >
                     الأرباح المتوقعة:{" "}
                     {formatCurrency(
-                      (clientExpenses.reduce((sum, exp) => sum + exp.amount, 0) *
+                      (clientExpenses.reduce(
+                        (sum, exp) => sum + exp.amount,
+                        0
+                      ) *
                         parseFloat(profitPercentage)) /
                         100
                     )}
@@ -3691,6 +4099,144 @@ export const ClientProfilePage = () => {
             حفظ
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Edit Client Dialog */}
+      <Dialog
+        open={editClientDialogOpen}
+        onClose={() => setEditClientDialogOpen(false)}
+        fullScreen
+        sx={{
+          "& .MuiDialog-paper": {
+            bgcolor: theme.palette.mode === "dark" ? "#1e293b" : "#fff",
+          },
+        }}
+      >
+        <form onSubmit={handleClientSubmit(onSubmitClient)}>
+          <Box
+            sx={{
+              background:
+                theme.palette.mode === "light"
+                  ? "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)"
+                  : "linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)",
+              color: "white",
+              p: 2,
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <IconButton
+                onClick={() => setEditClientDialogOpen(false)}
+                sx={{ color: "white" }}
+              >
+                <ArrowBack />
+              </IconButton>
+              <Typography variant="h6" fontWeight={700}>
+                تعديل بيانات العميل
+              </Typography>
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: 3.5 }}>
+            <Stack spacing={3}>
+              <Controller
+                name="name"
+                control={clientControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="الاسم"
+                    error={!!clientErrors.name}
+                    helperText={clientErrors.name?.message}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="type"
+                control={clientControl}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>النوع</InputLabel>
+                    <Select {...field} label="النوع" sx={{ borderRadius: 2 }}>
+                      <MenuItem value="individual">فرد</MenuItem>
+                      <MenuItem value="company">شركة</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+
+              <Controller
+                name="phone"
+                control={clientControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="رقم الهاتف"
+                    error={!!clientErrors.phone}
+                    helperText={clientErrors.phone?.message}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="email"
+                control={clientControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="البريد الإلكتروني"
+                    type="email"
+                    error={!!clientErrors.email}
+                    helperText={clientErrors.email?.message}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="address"
+                control={clientControl}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="العنوان"
+                    multiline
+                    rows={3}
+                    error={!!clientErrors.address}
+                    helperText={clientErrors.address?.message}
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                  />
+                )}
+              />
+            </Stack>
+
+            <Stack direction="row" spacing={2} sx={{ mt: 5 }}>
+              <Button
+                onClick={() => setEditClientDialogOpen(false)}
+                fullWidth
+                size="large"
+                sx={{ borderRadius: 2, py: 1.5 }}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                size="large"
+                sx={{ borderRadius: 2, py: 1.5 }}
+              >
+                حفظ التعديلات
+              </Button>
+            </Stack>
+          </Box>
+        </form>
       </Dialog>
 
       {/* Snackbar for success message */}
