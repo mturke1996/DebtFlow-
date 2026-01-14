@@ -1795,6 +1795,7 @@ export const ClientProfilePage = () => {
                                   <th>الوصف</th>
                                   <th>الفئة</th>
                                   <th>المبلغ</th>
+                                  <th>ملاحظات</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1810,6 +1811,13 @@ export const ClientProfilePage = () => {
                                     <td><strong>${formatCurrency(
                                       exp.amount
                                     )}</strong></td>
+                                    <td style="color: #64748b; font-style: italic; font-size: 11px; max-width: 200px; word-wrap: break-word;">
+                                      ${
+                                        exp.notes
+                                          ? `💬 ${exp.notes}`
+                                          : '<span style="color: #94a3b8;">-</span>'
+                                      }
+                                    </td>
                                   </tr>
                                 `
                                   )
@@ -2255,6 +2263,7 @@ export const ClientProfilePage = () => {
                                   <th>التاريخ</th>
                                   <th>طريقة الدفع</th>
                                   <th>المبلغ</th>
+                                  <th>ملاحظات</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2271,6 +2280,13 @@ export const ClientProfilePage = () => {
                                     <td><strong>${formatCurrency(
                                       payment.amount
                                     )}</strong></td>
+                                    <td style="color: #64748b; font-style: italic; font-size: 11px; max-width: 200px; word-wrap: break-word;">
+                                      ${
+                                        payment.notes
+                                          ? `💬 ${payment.notes}`
+                                          : '<span style="color: #94a3b8;">-</span>'
+                                      }
+                                    </td>
                                   </tr>
                                 `
                                   )

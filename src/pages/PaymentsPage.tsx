@@ -34,6 +34,8 @@ import {
   Delete,
   ArrowBack,
   Payment as PaymentIcon,
+  PictureAsPdf,
+  Share,
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { useForm, Controller } from 'react-hook-form';
@@ -41,6 +43,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Payment } from '@/types';
 import { formatCurrency } from '@/utils/calculations';
+import { generatePaymentsSummaryPDF } from '@/utils/pdfGenerator';
 import dayjs from 'dayjs';
 
 const paymentSchema = z.object({
@@ -58,6 +61,10 @@ export const PaymentsPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const { clients, invoices, payments, addPayment, updatePayment, deletePayment } = useDataStore();
+  
+  const handleShareTotal = () => {
+    generatePaymentsSummaryPDF(payments, clients, invoices);
+  };
   
   const [searchQuery, setSearchQuery] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('all');
@@ -219,20 +226,39 @@ export const PaymentsPage = () => {
             <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
               المدفوعات ({payments.length})
             </Typography>
-            <Button
-              variant="contained"
-              onClick={() => handleOpenDialog()}
-              sx={{
-                bgcolor: 'white',
-                color: 'success.main',
-                fontWeight: 700,
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-                borderRadius: 2,
-              }}
-              startIcon={<Add />}
-            >
-              جديدة
-            </Button>
+            <Stack direction="row" spacing={1.5}>
+              {payments.length > 0 && (
+                <Button
+                  variant="contained"
+                  onClick={handleShareTotal}
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.3)',
+                  }}
+                  startIcon={<Share />}
+                >
+                  مشاركة المجموع
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  bgcolor: 'white',
+                  color: 'success.main',
+                  fontWeight: 700,
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
+                  borderRadius: 2,
+                }}
+                startIcon={<Add />}
+              >
+                جديدة
+              </Button>
+            </Stack>
           </Stack>
 
           {/* Stats Card */}

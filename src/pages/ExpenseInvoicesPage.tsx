@@ -31,10 +31,11 @@ import {
   CheckCircle,
   Send,
   Schedule,
+  Share,
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { formatCurrency } from '@/utils/calculations';
-import { generateExpenseInvoicePDF } from '@/utils/pdfGenerator';
+import { generateExpenseInvoicePDF, generateExpenseInvoicesSummaryPDF } from '@/utils/pdfGenerator';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
 import type { ExpenseInvoice } from '@/types';
@@ -46,6 +47,10 @@ export const ExpenseInvoicesPage = () => {
   const { expenseInvoices, clients, getExpenseInvoices } = useDataStore();
   const [selectedInvoice, setSelectedInvoice] = useState<ExpenseInvoice | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+
+  const handleShareTotal = () => {
+    generateExpenseInvoicesSummaryPDF(expenseInvoices, clients);
+  };
 
   const invoicesWithClient = useMemo(() => {
     return expenseInvoices.map((invoice) => {
@@ -126,9 +131,20 @@ export const ExpenseInvoicesPage = () => {
         <IconButton onClick={() => navigate(-1)} sx={{ marginLeft: '8px' }}>
           <ArrowBack />
         </IconButton>
-        <Typography variant="h4" fontWeight="bold">
+        <Typography variant="h4" fontWeight="bold" sx={{ flexGrow: 1 }}>
           فواتير المصروفات
         </Typography>
+        {expenseInvoices.length > 0 && (
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleShareTotal}
+            startIcon={<Share />}
+            sx={{ borderRadius: 2 }}
+          >
+            مشاركة المجموع
+          </Button>
+        )}
       </Stack>
 
       {invoicesWithClient.length === 0 ? (
