@@ -1880,6 +1880,19 @@ export const generatePaymentsSummaryPDF = (
             padding: 0;
             background: #ffffff;
           }
+
+@media print {
+  .header {
+    background: #1e3a8a !important; /* أزرق ملكي */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .header,
+  .header * {
+    color: #ffffff !important;
+  }
+}
           
           .invoice-container {
             box-shadow: none;
