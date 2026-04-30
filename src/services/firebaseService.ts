@@ -15,7 +15,7 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { Client, Invoice, Payment, Debt, Project, Expense, StandaloneDebt, ExpenseInvoice, DebtParty } from '../types';
+import type { Client, Invoice, Payment, Debt, Project, Expense, StandaloneDebt, ExpenseInvoice, DebtParty, Worker } from '../types';
 
 // Generic CRUD operations
 export class FirestoreService<T extends { id: string }> {
@@ -35,7 +35,6 @@ export class FirestoreService<T extends { id: string }> {
         } as T;
       });
     } catch (error) {
-      console.error(`Error getting ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -49,7 +48,6 @@ export class FirestoreService<T extends { id: string }> {
       }
       return null;
     } catch (error) {
-      console.error(`Error getting ${this.collectionName} by id:`, error);
       throw error;
     }
   }
@@ -67,7 +65,6 @@ export class FirestoreService<T extends { id: string }> {
       });
       return docRef.id;
     } catch (error) {
-      console.error(`Error adding ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -80,7 +77,6 @@ export class FirestoreService<T extends { id: string }> {
         updatedAt: new Date().toISOString(),
       });
     } catch (error) {
-      console.error(`Error updating ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -90,7 +86,6 @@ export class FirestoreService<T extends { id: string }> {
       const docRef = doc(db, this.collectionName, id);
       await deleteDoc(docRef);
     } catch (error) {
-      console.error(`Error deleting ${this.collectionName}:`, error);
       throw error;
     }
   }
@@ -124,6 +119,7 @@ export const paymentsService = new FirestoreService<Payment>('payments');
 export const debtsService = new FirestoreService<Debt>('debts');
 export const projectsService = new FirestoreService<Project>('projects');
 export const expensesService = new FirestoreService<Expense>('expenses');
+export const workersService = new FirestoreService<Worker>('workers');
 export const standaloneDebtsService = new FirestoreService<StandaloneDebt>('standaloneDebts');
 export const expenseInvoicesService = new FirestoreService<ExpenseInvoice>('expenseInvoices');
 export const debtPartiesService = new FirestoreService<DebtParty>('debtParties');
@@ -156,6 +152,7 @@ export async function closeExpensesAndCreateInvoice(
     // Generate invoice number
     const invoiceNumber = `EXP-${Date.now()}`;
 
+    const now = new Date().toISOString();
     // Create expense invoice
     const invoiceId = await expenseInvoicesService.add({
       invoiceNumber,
@@ -168,6 +165,8 @@ export async function closeExpensesAndCreateInvoice(
       status: 'draft',
       issueDate: new Date().toISOString(),
       notes,
+      createdAt: now,
+      updatedAt: now,
     });
 
     // Mark expenses as closed
@@ -182,7 +181,6 @@ export async function closeExpensesAndCreateInvoice(
 
     return invoiceId;
   } catch (error) {
-    console.error('Error closing expenses and creating invoice:', error);
     throw error;
   }
 }

@@ -146,32 +146,22 @@ export const ClientsPage = () => {
 
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: theme.palette.mode === 'dark' ? '#0f172a' : '#f8fafc',
-        pb: 3,
-      }}
-    >
-      {/* Header */}
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', pb: 3 }}>
       <Box
         sx={{
-          background: theme.palette.mode === 'light' 
-            ? 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)'
-            : 'linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)',
-          pt: 3,
+          backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.11 : 0.22),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.22)}`,
+          pt: 'calc(24px + env(safe-area-inset-top))',
           pb: 4,
           px: 2,
-          borderRadius: '0 0 32px 32px',
-          boxShadow: '0 8px 32px rgba(25, 118, 210, 0.25)',
         }}
       >
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
+            <IconButton onClick={() => navigate('/')} sx={{ color: 'text.primary', marginLeft: '8px' }} aria-label="رجوع">
               <ArrowBack />
             </IconButton>
-            <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
+            <Typography variant="h5" fontWeight={800} sx={{ color: 'text.primary', flexGrow: 1 }}>
               العملاء ({clients.length})
             </Typography>
             <Button
@@ -288,7 +278,7 @@ export const ClientsPage = () => {
                       </Avatar>
 
                       {/* Client Info */}
-                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Box sx={{ flex: 1, minWidth: 0, marginInlineStart: 2 }}>
                         <Stack 
                           direction={{ xs: 'column', sm: 'row' }} 
                           spacing={{ xs: 1, sm: 2 }} 
@@ -394,15 +384,14 @@ export const ClientsPage = () => {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box
             sx={{
-              background: theme.palette.mode === 'light' 
-                ? 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)'
-                : 'linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)',
-              color: 'white',
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
               p: 2,
+              pt: 'calc(16px + env(safe-area-inset-top))',
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
-              <IconButton onClick={handleCloseDialog} sx={{ color: 'white' }}>
+              <IconButton onClick={handleCloseDialog} sx={{ color: 'inherit' }}>
                 <ArrowBack />
               </IconButton>
               <Typography variant="h6" fontWeight={700}>

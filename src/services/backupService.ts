@@ -38,7 +38,7 @@ export const exportToExcel = (data: BackupData): void => {
         'الهاتف': client.phone,
         'العنوان': client.address,
         'النوع': client.type === 'company' ? 'شركة' : 'فرد',
-        'نسبة الأرباح': client.profitPercentage || 0,
+        'النسبة المتفق عليها': client.profitPercentage || 0,
         'تاريخ الإنشاء': client.createdAt,
       }))
     );
@@ -180,7 +180,6 @@ export const exportToExcel = (data: BackupData): void => {
     const fileName = `DebtFlow_Backup_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   } catch (error) {
-    console.error('Error exporting to Excel:', error);
     throw new Error('فشل تصدير البيانات إلى Excel');
   }
 };
@@ -202,7 +201,6 @@ export const exportToJson = (data: BackupData): void => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Error exporting to JSON:', error);
     throw new Error('فشل تصدير البيانات إلى JSON');
   }
 };
@@ -230,7 +228,7 @@ export const importFromExcel = async (
         phone: row['الهاتف'],
         address: row['العنوان'],
         type: row['النوع'] === 'شركة' ? 'company' : 'individual',
-        profitPercentage: row['نسبة الأرباح'] || 0,
+        profitPercentage: row['النسبة المتفق عليها'] ?? row['نسبة الأرباح'] ?? 0,
         createdAt: row['تاريخ الإنشاء'],
         updatedAt: new Date().toISOString(),
       }));
@@ -245,8 +243,8 @@ export const importFromExcel = async (
       let invoiceItemsMap: Record<string, any[]> = {} as Record<string, any[]>;
       if (workbook.SheetNames.includes('بنود الفواتير')) {
         const itemsSheet = workbook.Sheets['بنود الفواتير'];
-        const itemsData = XLSX.utils.sheet_to_json(itemsSheet);
-        invoiceItemsMap = itemsData.reduce((acc: any, item: any) => {
+        const itemsData = XLSX.utils.sheet_to_json(itemsSheet) as any[];
+        invoiceItemsMap = itemsData.reduce((acc: Record<string, any[]>, item: any) => {
           const invoiceNum = item['معرف الفاتورة'];
           if (!acc[invoiceNum]) acc[invoiceNum] = [];
           acc[invoiceNum].push({
@@ -257,7 +255,7 @@ export const importFromExcel = async (
             total: item['الإجمالي'],
           });
           return acc;
-        }, {});
+        }, {} as Record<string, any[]>);
       }
 
       result.invoices = invoicesData.map((row: any) => ({
@@ -376,7 +374,6 @@ export const importFromExcel = async (
 
     return result;
   } catch (error) {
-    console.error('Error importing from Excel:', error);
     throw new Error('فشل استيراد البيانات من Excel');
   }
 };
@@ -392,7 +389,6 @@ export const importFromJson = async (
     const data = JSON.parse(text);
     return data;
   } catch (error) {
-    console.error('Error importing from JSON:', error);
     throw new Error('فشل استيراد البيانات من JSON');
   }
 };

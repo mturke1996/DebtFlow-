@@ -124,9 +124,16 @@ export const DebtsPage = () => {
         notes: form.notes,
       });
     } else {
+      const client = clients.find((c) => c.id === form.clientId);
+      const partyName = client?.name ?? "";
+      const partyType: StandaloneDebt["partyType"] =
+        client?.type === "company" ? "company" : "person";
       const newDebt: StandaloneDebt = {
         id: crypto.randomUUID(),
         clientId: form.clientId,
+        partyId: form.clientId,
+        partyType,
+        partyName,
         description: form.description,
         amount,
         paidAmount: 0,

@@ -35,7 +35,8 @@ import {
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { formatCurrency } from '@/utils/calculations';
-import { generateExpenseInvoicePDF, generateExpenseInvoicesSummaryPDF } from '@/utils/pdfGenerator';
+import { downloadPdf } from '@/utils/pdfService';
+import { ExpenseInvoiceStyledPDF, ExpenseInvoicesSummaryStyledPDF } from '@/components/pdf/StyledPDFs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
 import type { ExpenseInvoice } from '@/types';
@@ -49,7 +50,10 @@ export const ExpenseInvoicesPage = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
 
   const handleShareTotal = () => {
-    generateExpenseInvoicesSummaryPDF(expenseInvoices, clients);
+    downloadPdf(
+      <ExpenseInvoicesSummaryStyledPDF expenseInvoices={expenseInvoices} clients={clients} />,
+      'expense-invoices-summary.pdf'
+    );
   };
 
   const invoicesWithClient = useMemo(() => {
@@ -62,7 +66,10 @@ export const ExpenseInvoicesPage = () => {
   const handleViewPDF = (invoice: ExpenseInvoice) => {
     const client = clients.find((c) => c.id === invoice.clientId);
     if (client) {
-      generateExpenseInvoicePDF(invoice, client);
+      downloadPdf(
+        <ExpenseInvoiceStyledPDF invoice={invoice} client={client} />,
+        `expense-invoice-${invoice.invoiceNumber}.pdf`
+      );
     }
   };
 
@@ -361,7 +368,10 @@ export const ExpenseInvoicesPage = () => {
               onClick={() => {
                 const client = clients.find((c) => c.id === selectedInvoice.clientId);
                 if (client) {
-                  generateExpenseInvoicePDF(selectedInvoice, client);
+                  downloadPdf(
+                    <ExpenseInvoiceStyledPDF invoice={selectedInvoice} client={client} />,
+                    `expense-invoice-${selectedInvoice.invoiceNumber}.pdf`
+                  );
                 }
                 setPreviewDialogOpen(false);
               }}

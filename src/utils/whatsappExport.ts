@@ -243,7 +243,6 @@ export const generateWhatsAppStatement = async (
                   downloadImage();
                 }
               } catch (error) {
-                console.error('Error sharing:', error);
                 alert('حدث خطأ. يرجى تحميل الصورة ومشاركتها يدوياً.');
                 downloadImage();
               }
@@ -258,7 +257,6 @@ export const generateWhatsAppStatement = async (
     return image;
   } catch (error) {
     document.body.removeChild(container);
-    console.error('Error generating statement:', error);
     throw error;
   }
 };

@@ -24,6 +24,7 @@ import {
   useTheme,
   Divider,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   Add,
   Search,
@@ -37,11 +38,21 @@ import { useDataStore } from "@/store/useDataStore";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import type { Invoice, InvoiceItem, Client } from "@/types";
 import { formatCurrency } from "@/utils/calculations";
-import { generateInvoicePDF } from "@/utils/pdfGenerator";
+import { downloadPdf } from "@/utils/pdfService";
+import { InvoiceStyledPDF } from "@/components/pdf/StyledPDFs";
+import { getNextInvoiceNumber } from "@/utils/invoiceNumber";
 import dayjs from "dayjs";
 import "dayjs/locale/ar";
+import toast from "react-hot-toast";
 
 dayjs.locale("ar");
+
+const QUICK_ITEMS = [
+  { description: "أعمال بناء", quantity: "1", unitPrice: "0" },
+  { description: "توريد مواد", quantity: "1", unitPrice: "0" },
+  { description: "أعمال كهرباء", quantity: "1", unitPrice: "0" },
+  { description: "أعمال سباكة", quantity: "1", unitPrice: "0" },
+];
 
 export const InvoicesPage = () => {
   const navigate = useNavigate();
@@ -63,6 +74,8 @@ export const InvoicesPage = () => {
     defaultValues: {
       clientId: "",
       items: [{ description: "", quantity: "", unitPrice: "" }],
+      discount: "0",
+      taxRate: "0",
       notes: "",
       dueDate: dayjs().add(30, "days").format("YYYY-MM-DD"),
     },
@@ -75,14 +88,21 @@ export const InvoicesPage = () => {
 
   const watchItems = watch("items");
 
+  const discount = parseFloat(watch("discount") || "0") || 0;
+  const taxRate = parseFloat(watch("taxRate") || "0") || 0;
+
   const calculatedTotal = useMemo(() => {
     const subtotal = watchItems.reduce((sum: number, item: any) => {
       const quantity = parseFloat(item.quantity) || 0;
       const unitPrice = parseFloat(item.unitPrice) || 0;
       return sum + quantity * unitPrice;
     }, 0);
-    return { subtotal, total: subtotal };
-  }, [watchItems]);
+    const safeDiscount = Math.max(0, Math.min(discount, subtotal));
+    const taxableBase = Math.max(0, subtotal - safeDiscount);
+    const taxAmount = taxableBase * (Math.max(0, taxRate) / 100);
+    const total = taxableBase + taxAmount;
+    return { subtotal, discount: safeDiscount, taxAmount, total };
+  }, [watchItems, discount, taxRate]);
 
   const filteredInvoices = useMemo(() => {
     return invoices
@@ -104,6 +124,8 @@ export const InvoicesPage = () => {
     reset({
       clientId: "",
       items: [{ description: "", quantity: "", unitPrice: "" }],
+      discount: "0",
+      taxRate: "0",
       notes: "",
       dueDate: dayjs().add(30, "days").format("YYYY-MM-DD"),
     });
@@ -142,22 +164,6 @@ export const InvoicesPage = () => {
     setNewClientPhone("");
   };
 
-  const generateInvoiceNumber = () => {
-    // Get the highest invoice number
-    const invoiceNumbers = invoices
-      .map((inv) => {
-        const match = inv.invoiceNumber.match(/^INV(\d+)$/);
-        return match ? parseInt(match[1], 10) : 0;
-      })
-      .filter((num) => num > 0);
-
-    const nextNumber =
-      invoiceNumbers.length > 0 ? Math.max(...invoiceNumbers) + 1 : 1;
-
-    // Format as 3 digits with leading zeros
-    return `INV${String(nextNumber).padStart(3, "0")}`;
-  };
-
   const onSubmit = async (data: any) => {
     // Prevent double submission
     if (isSubmitting) {
@@ -178,7 +184,7 @@ export const InvoicesPage = () => {
       );
 
       if (validItems.length === 0) {
-        alert("يرجى إضافة عنصر واحد على الأقل مع وصف وكمية وسعر صحيحة");
+        toast.error("يرجى إضافة عنصر واحد على الأقل مع وصف وكمية وسعر صحيحة");
         setIsSubmitting(false);
         return;
       }
@@ -224,7 +230,7 @@ export const InvoicesPage = () => {
           // Keep the temp ID - this client is NOT saved to clients list
           finalClientId = data.clientId;
         } else {
-          alert("خطأ: لم يتم العثور على معلومات العميل المؤقت");
+          toast.error("خطأ: لم يتم العثور على معلومات العميل المؤقت");
           setIsSubmitting(false);
           return;
         }
@@ -233,15 +239,22 @@ export const InvoicesPage = () => {
       // IMPORTANT: We NEVER call addClient() for temporary clients
       // They are only stored in the invoice notes in special format, not in the clients database
 
+      const formDiscount = parseFloat(data.discount || "0") || 0;
+      const formTaxRate = parseFloat(data.taxRate || "0") || 0;
+      const safeDiscount = Math.max(0, Math.min(formDiscount, subtotal));
+      const taxableBase = Math.max(0, subtotal - safeDiscount);
+      const taxAmount = taxableBase * (Math.max(0, formTaxRate) / 100);
+      const total = taxableBase + taxAmount;
+
       const newInvoice: Invoice = {
         id: crypto.randomUUID(),
-        invoiceNumber: generateInvoiceNumber(),
+        invoiceNumber: getNextInvoiceNumber(invoices),
         clientId: finalClientId,
         items,
         subtotal,
-        taxRate: 0,
-        taxAmount: 0,
-        total: subtotal,
+        taxRate: formTaxRate,
+        taxAmount,
+        total,
         status: "draft",
         issueDate: new Date().toISOString(),
         dueDate: data.dueDate,
@@ -256,29 +269,29 @@ export const InvoicesPage = () => {
       reset({
         clientId: "",
         items: [{ description: "", quantity: "", unitPrice: "" }],
+        discount: "0",
+        taxRate: "0",
         notes: "",
         dueDate: dayjs().add(30, "days").format("YYYY-MM-DD"),
       });
+      toast.success("تم إنشاء الفاتورة بنجاح");
     } catch (error) {
-      console.error("Error saving invoice:", error);
+      toast.error("تعذر إنشاء الفاتورة، حاول مرة أخرى");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
-        pb: 3,
-      }}
-    >
-      {/* Header */}
+    <Box sx={{ minHeight: "100dvh", bgcolor: "background.default", pb: 3 }}>
       <Box
         sx={{
-          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-          pt: 2,
+          backgroundColor: alpha(
+            theme.palette.primary.main,
+            theme.palette.mode === "light" ? 0.11 : 0.22
+          ),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          pt: 'calc(16px + env(safe-area-inset-top))',
           pb: 3,
           px: 2,
         }}
@@ -287,26 +300,32 @@ export const InvoicesPage = () => {
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
             <IconButton
               onClick={() => navigate("/")}
-              sx={{ color: "white", marginLeft: "8px" }}
+              sx={{ color: "text.primary", marginLeft: "8px" }}
+              aria-label="رجوع"
             >
               <ArrowBack />
             </IconButton>
             <Typography
               variant="h5"
               fontWeight={800}
-              sx={{ color: "white", flexGrow: 1 }}
+              sx={{ color: "text.primary", flexGrow: 1 }}
             >
               الفواتير
             </Typography>
             <Button
               variant="contained"
+              color="primary"
               onClick={handleOpenDialog}
               sx={{
-                bgcolor: "white",
-                color: "#3b82f6",
                 fontWeight: 700,
-                "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
                 borderRadius: 2,
+                bgcolor: "#fcfbfa",
+                color: theme.palette.primary.main,
+                boxShadow: "none",
+                "&:hover": {
+                  bgcolor: alpha("#fdfcfa", 0.94),
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+                },
               }}
               startIcon={<Add />}
             >
@@ -351,6 +370,7 @@ export const InvoicesPage = () => {
                 <MenuItem value="draft">مسودة</MenuItem>
                 <MenuItem value="sent">مرسلة</MenuItem>
                 <MenuItem value="paid">مدفوعة</MenuItem>
+                <MenuItem value="partially_paid">مدفوعة جزئياً</MenuItem>
                 <MenuItem value="overdue">متأخرة</MenuItem>
               </Select>
             </FormControl>
@@ -513,7 +533,10 @@ export const InvoicesPage = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           if (client) {
-                            generateInvoicePDF(invoice, client);
+                            downloadPdf(
+                              <InvoiceStyledPDF invoice={invoice} client={client} />,
+                              `invoice-${invoice.invoiceNumber}.pdf`
+                            );
                           }
                         }}
                         sx={{
@@ -564,15 +587,16 @@ export const InvoicesPage = () => {
         >
           <Box
             sx={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-              color: "white",
+              backgroundColor: theme.palette.primary.main,
+              color: theme.palette.primary.contrastText,
               p: 2,
+              pt: 'calc(16px + env(safe-area-inset-top))',
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
               <IconButton
                 onClick={() => setDialogOpen(false)}
-                sx={{ color: "white" }}
+                sx={{ color: "inherit" }}
               >
                 <ArrowBack />
               </IconButton>
@@ -628,6 +652,19 @@ export const InvoicesPage = () => {
               <Typography variant="subtitle1" fontWeight={700}>
                 العناصر
               </Typography>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+                {QUICK_ITEMS.map((item) => (
+                  <Button
+                    key={item.description}
+                    variant="text"
+                    size="small"
+                    onClick={() => append(item)}
+                    sx={{ borderRadius: 99 }}
+                  >
+                    + {item.description}
+                  </Button>
+                ))}
+              </Stack>
 
               {fields.map((field, index) => (
                 <Card
@@ -775,6 +812,41 @@ export const InvoicesPage = () => {
               </Button>
 
               {/* Due Date */}
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 6 }}>
+                  <Controller
+                    name="discount"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="خصم"
+                        type="number"
+                        inputProps={{ min: 0, step: "0.01" }}
+                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Controller
+                    name="taxRate"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="الضريبة %"
+                        type="number"
+                        inputProps={{ min: 0, max: 100, step: "0.1" }}
+                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                      />
+                    )}
+                  />
+                </Grid>
+              </Grid>
+
               <Controller
                 name="dueDate"
                 control={control}
@@ -809,10 +881,9 @@ export const InvoicesPage = () => {
               <Card
                 sx={{
                   borderRadius: 3,
-                  background:
-                    "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                  color: "white",
-                  boxShadow: "0 8px 24px rgba(99, 102, 241, 0.3)",
+                  bgcolor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                  boxShadow: `0 8px 28px ${alpha(theme.palette.primary.main, 0.35)}`,
                   border: "none",
                 }}
               >
@@ -835,6 +906,30 @@ export const InvoicesPage = () => {
                       </Typography>
                     </Stack>
                     <Divider sx={{ bgcolor: "rgba(255,255,255,0.3)" }} />
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="body1" fontWeight={700} sx={{ opacity: 0.95 }}>
+                        الخصم:
+                      </Typography>
+                      <Typography variant="body1" fontWeight={800}>
+                        {formatCurrency(calculatedTotal.discount)}
+                      </Typography>
+                    </Stack>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography variant="body1" fontWeight={700} sx={{ opacity: 0.95 }}>
+                        الضريبة:
+                      </Typography>
+                      <Typography variant="body1" fontWeight={800}>
+                        {formatCurrency(calculatedTotal.taxAmount)}
+                      </Typography>
+                    </Stack>
                     <Stack
                       direction="row"
                       justifyContent="space-between"
@@ -975,18 +1070,15 @@ export const InvoicesPage = () => {
               <>
                 <Box
                   sx={{
-                    background:
-                      theme.palette.mode === "light"
-                        ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
-                        : "linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)",
-                    color: "white",
+                    bgcolor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
                     p: 2,
                   }}
                 >
                   <Stack direction="row" alignItems="center" spacing={2}>
                     <IconButton
                       onClick={() => setPreviewDialogOpen(false)}
-                      sx={{ color: "white" }}
+                      sx={{ color: "inherit" }}
                     >
                       <ArrowBack />
                     </IconButton>
@@ -1002,7 +1094,10 @@ export const InvoicesPage = () => {
                       size="small"
                       startIcon={<PictureAsPdf />}
                       onClick={() =>
-                        generateInvoicePDF(selectedInvoice, previewClient)
+                        downloadPdf(
+                          <InvoiceStyledPDF invoice={selectedInvoice} client={previewClient} />,
+                          `invoice-${selectedInvoice.invoiceNumber}.pdf`
+                        )
                       }
                       sx={{
                         bgcolor: "white",

@@ -14,7 +14,7 @@ export interface Client {
   phone: string;
   address: string;
   type: 'company' | 'individual';
-  profitPercentage?: number; // نسبة الأرباح من المصروفات
+  profitPercentage?: number; // النسبة المتفق عليها من المصروفات
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +107,7 @@ export interface Debt {
 export interface Expense {
   id: string;
   clientId: string;
+  expenseNumber?: string;
   description: string;
   amount: number;
   category: string;
@@ -115,6 +116,20 @@ export interface Expense {
   isClosed: boolean; // هل تم إغلاق المصروف في فاتورة
   closedAt?: string; // تاريخ الإغلاق
   expenseInvoiceId?: string; // معرف فاتورة المصروفات المرتبطة
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Worker Types
+export interface Worker {
+  id: string;
+  clientId: string;
+  fullName: string;
+  phone: string;
+  role: string;
+  dailyRate: number;
+  isActive: boolean;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

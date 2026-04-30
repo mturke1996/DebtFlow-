@@ -5,19 +5,13 @@ import type {
   Payment,
   Expense,
 } from "../types";
+import { PRINT_COMPANY_INFO } from "../constants/pdfCompanyInfo";
 import { formatCurrency } from "./calculations";
 import dayjs from "dayjs";
 import QRCode from "qrcode";
 
 export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
-  // Company information
-  const COMPANY_INFO = {
-    name: "المهندس محمد التركي",
-    address: "تاجوراء شارع اولاد التركي",
-    phone: "0913041404",
-    email: "",
-    taxNumber: "",
-  };
+  const COMPANY_INFO = PRINT_COMPANY_INFO;
 
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
@@ -35,8 +29,14 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
       <meta name="format-detection" content="telephone=no">
       <title>فاتورة ${invoice.invoiceNumber}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=block');
+        
+        @font-face {
+          font-family: 'Cairo';
+          font-display: block;
+        }
+        
         * {
           margin: 0;
           padding: 0;
@@ -504,6 +504,7 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
         <!-- Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
+          <div style="font-size:17px;font-weight:700;color:rgba(255,255,255,.92);margin-bottom:12px;line-height:1.4">${COMPANY_INFO.subtitle}</div>
           <div class="company-details">
             <span class="company-details-item">${COMPANY_INFO.address}</span>
             <span class="company-details-item">${COMPANY_INFO.phone}</span>
@@ -633,9 +634,11 @@ export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
       
       <script>
         window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 250);
+          document.fonts.ready.then(function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
         };
       </script>
     </body>
@@ -650,15 +653,7 @@ export const generateExpenseInvoicePDF = (
   expenseInvoice: ExpenseInvoice,
   client: Client
 ) => {
-  // Company information
-  const COMPANY_INFO = {
-    name: "المهندس محمد التركي",
-    address: "تاجوراء شارع اولاد التركي",
-    phone: "0913041404",
-    email: "",
-    taxNumber: "",
-  };
-
+  const COMPANY_INFO = PRINT_COMPANY_INFO;
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -1226,6 +1221,7 @@ export const generateExpenseInvoicePDF = (
         <!-- Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
+          <div style="font-size:17px;font-weight:700;color:rgba(255,255,255,.92);margin-bottom:12px;line-height:1.4">${COMPANY_INFO.subtitle}</div>
           <div class="company-details">
             <span class="company-details-item">${COMPANY_INFO.address}</span>
             <span class="company-details-item">${COMPANY_INFO.phone}</span>
@@ -1423,9 +1419,11 @@ export const generateExpenseInvoicePDF = (
       
       <script>
         window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 250);
+          document.fonts.ready.then(function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
         };
       </script>
     </body>
@@ -1441,15 +1439,7 @@ export const generatePaymentsSummaryPDF = (
   clients: Client[],
   invoices: Invoice[]
 ) => {
-  // Company information
-  const COMPANY_INFO = {
-    name: "المهندس محمد التركي",
-    address: "تاجوراء شارع اولاد التركي",
-    phone: "0913041404",
-    email: "",
-    taxNumber: "",
-  };
-
+  const COMPANY_INFO = PRINT_COMPANY_INFO;
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -1927,6 +1917,7 @@ export const generatePaymentsSummaryPDF = (
         <!-- Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
+          <div style="font-size:17px;font-weight:700;color:rgba(255,255,255,.92);margin-bottom:12px;line-height:1.4">${COMPANY_INFO.subtitle}</div>
           <div class="company-details">
             <span class="company-details-item">${COMPANY_INFO.address}</span>
             <span class="company-details-item">${COMPANY_INFO.phone}</span>
@@ -2044,9 +2035,11 @@ export const generatePaymentsSummaryPDF = (
       
       <script>
         window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 250);
+          document.fonts.ready.then(function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
         };
       </script>
     </body>
@@ -2061,15 +2054,7 @@ export const generateExpenseInvoicesSummaryPDF = (
   expenseInvoices: ExpenseInvoice[],
   clients: Client[]
 ) => {
-  // Company information
-  const COMPANY_INFO = {
-    name: "المهندس محمد التركي",
-    address: "تاجوراء شارع اولاد التركي",
-    phone: "0913041404",
-    email: "",
-    taxNumber: "",
-  };
-
+  const COMPANY_INFO = PRINT_COMPANY_INFO;
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -2528,6 +2513,7 @@ export const generateExpenseInvoicesSummaryPDF = (
         <!-- Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
+          <div style="font-size:17px;font-weight:700;color:rgba(255,255,255,.92);margin-bottom:12px;line-height:1.4">${COMPANY_INFO.subtitle}</div>
           <div class="company-details">
             <span class="company-details-item">${COMPANY_INFO.address}</span>
             <span class="company-details-item">${COMPANY_INFO.phone}</span>
@@ -2553,7 +2539,7 @@ export const generateExpenseInvoicesSummaryPDF = (
             <div class="summary-card-value">${totalExpenses}</div>
           </div>
           <div class="summary-card">
-            <div class="summary-card-label">إجمالي الأرباح</div>
+            <div class="summary-card-label">إجمالي النسبة المتفق عليها</div>
             <div class="summary-card-value">${formatCurrency(totalProfit)}</div>
           </div>
           <div class="summary-card">
@@ -2702,7 +2688,7 @@ export const generateExpenseInvoicesSummaryPDF = (
             <span class="total-value">${formatCurrency(totalAmount)}</span>
           </div>
           <div class="total-row">
-            <span class="total-label">إجمالي الأرباح:</span>
+            <span class="total-label">إجمالي النسبة المتفق عليها:</span>
             <span class="total-value">${formatCurrency(totalProfit)}</span>
           </div>
           <div class="total-row final">
@@ -2722,9 +2708,11 @@ export const generateExpenseInvoicesSummaryPDF = (
       
       <script>
         window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 250);
+          document.fonts.ready.then(function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
         };
       </script>
     </body>
@@ -2741,15 +2729,7 @@ export const generateFinalReportPDF = (
   payments: Payment[],
   invoices: Invoice[]
 ) => {
-  // Company information
-  const COMPANY_INFO = {
-    name: "المهندس محمد التركي",
-    address: "تاجوراء شارع اولاد التركي",
-    phone: "0913041404",
-    email: "",
-    taxNumber: "",
-  };
-
+  const COMPANY_INFO = PRINT_COMPANY_INFO;
   // Create a new window for printing
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
@@ -2765,7 +2745,9 @@ export const generateFinalReportPDF = (
     totalExpenses > 0 && profitPercentage > 0
       ? (totalExpenses * profitPercentage) / 100
       : 0;
-  const remaining = totalPayments - (totalExpenses + profit);
+  const totalDue = totalExpenses + profit;
+  const remaining = Math.max(totalDue - totalPayments, 0);
+  const overpaid = Math.max(totalPayments - totalDue, 0);
 
   // Group expenses by date
   const expensesByDate = expenses.reduce((acc, exp) => {
@@ -3474,6 +3456,7 @@ export const generateFinalReportPDF = (
         <!-- Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
+          <div style="font-size:17px;font-weight:700;color:rgba(255,255,255,.92);margin-bottom:12px;line-height:1.4">${COMPANY_INFO.subtitle}</div>
           <div class="company-details">
             <span class="company-details-item">${COMPANY_INFO.address}</span>
             <span class="company-details-item">${COMPANY_INFO.phone}</span>
@@ -3558,7 +3541,7 @@ export const generateFinalReportPDF = (
           
           <div class="summary-card profit">
             <div class="summary-card-icon">📈</div>
-            <div class="summary-card-label">نسبة الربح (${profitPercentage}%)</div>
+            <div class="summary-card-label">النسبة المتفق عليها (${profitPercentage}%)</div>
             <div class="summary-card-value profit">${formatCurrency(
               profit
             )}</div>
@@ -3567,11 +3550,11 @@ export const generateFinalReportPDF = (
           
           <div class="summary-card remaining">
             <div class="summary-card-icon">💼</div>
-            <div class="summary-card-label">المتبقي</div>
+            <div class="summary-card-label">المتبقي المستحق</div>
             <div class="summary-card-value remaining">${formatCurrency(
               remaining
             )}</div>
-            <div style="font-size: 12px; color: #94a3b8; margin-top: 8px;">المدفوعات - المصروفات</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 8px;">إجمالي المستحق - إجمالي المدفوع</div>
           </div>
         </div>
         
@@ -3721,7 +3704,7 @@ export const generateFinalReportPDF = (
               )}</div>
             </div>
             <div class="calculation-item">
-              <div class="calculation-label">نسبة الربح (${profitPercentage}%)</div>
+              <div class="calculation-label">النسبة المتفق عليها (${profitPercentage}%)</div>
               <div class="calculation-value" style="color: #f59e0b;">${formatCurrency(
                 profit
               )}</div>
@@ -3729,15 +3712,23 @@ export const generateFinalReportPDF = (
             <div class="calculation-item">
               <div class="calculation-label">إجمالي المصروفات + النسبة</div>
               <div class="calculation-value" style="color: #dc2626;">${formatCurrency(
-                totalExpenses + profit
+                totalDue
               )}</div>
             </div>
             <div class="calculation-item">
-              <div class="calculation-label">المتبقي</div>
+              <div class="calculation-label">المتبقي المستحق</div>
               <div class="calculation-value" style="color: #3b82f6;">${formatCurrency(
                 remaining
               )}</div>
             </div>
+            ${
+              overpaid > 0
+                ? `<div class="calculation-item">
+              <div class="calculation-label">رصيد زائد (مدفوع أكثر)</div>
+              <div class="calculation-value" style="color: #0f766e;">${formatCurrency(overpaid)}</div>
+            </div>`
+                : ""
+            }
           </div>
         </div>
         
@@ -3750,9 +3741,11 @@ export const generateFinalReportPDF = (
       
       <script>
         window.onload = function() {
-          setTimeout(function() {
-            window.print();
-          }, 250);
+          document.fonts.ready.then(function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
         };
       </script>
     </body>

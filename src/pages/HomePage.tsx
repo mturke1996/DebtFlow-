@@ -10,6 +10,7 @@ import {
   IconButton,
   Stack,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   People,
   Receipt,
@@ -93,25 +94,22 @@ export const HomePage = () => {
       title: "العملاء",
       icon: People,
       path: "/clients",
-      color: "#ec4899",
-      bgColor:
-        theme.palette.mode === "dark" ? "rgba(236, 72, 153, 0.2)" : "#fce7f3",
+      color: theme.palette.primary.main,
+      bgColor: alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.2 : 0.12),
     },
     {
       title: "الفواتير",
       icon: Receipt,
       path: "/invoices",
-      color: "#3b82f6",
-      bgColor:
-        theme.palette.mode === "dark" ? "rgba(59, 130, 246, 0.2)" : "#dbeafe",
+      color: theme.palette.info.main,
+      bgColor: alpha(theme.palette.info.main, theme.palette.mode === "dark" ? 0.22 : 0.12),
     },
     {
       title: "المدفوعات",
       icon: Payment,
       path: "/payments",
-      color: "#10b981",
-      bgColor:
-        theme.palette.mode === "dark" ? "rgba(16, 185, 129, 0.2)" : "#d1fae5",
+      color: theme.palette.success.main,
+      bgColor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.2 : 0.12),
     },
   ];
 
@@ -121,18 +119,15 @@ export const HomePage = () => {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: theme.palette.mode === "dark" ? "#0f172a" : "#f8fafc",
-        pb: 4,
-      }}
-    >
-      {/* Header */}
+    <Box sx={{ minHeight: "100dvh", bgcolor: "background.default", pb: 4 }}>
       <Box
         sx={{
-          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-          pt: 3,
+          backgroundColor: alpha(
+            theme.palette.primary.main,
+            theme.palette.mode === "dark" ? 0.2 : 0.12
+          ),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          pt: 'calc(24px + env(safe-area-inset-top))',
           pb: 4,
           px: 2,
         }}
@@ -152,7 +147,8 @@ export const HomePage = () => {
                   sx={{
                     width: 45,
                     height: 45,
-                    bgcolor: "rgba(255,255,255,0.25)",
+                    bgcolor: alpha(theme.palette.primary.main, 0.15),
+                    color: "primary.main",
                     fontSize: "1.2rem",
                     fontWeight: 700,
                   }}
@@ -163,13 +159,13 @@ export const HomePage = () => {
                 <Box>
                   <Typography
                     variant="body2"
-                    sx={{ color: "rgba(255,255,255,0.8)", fontSize: "0.8rem" }}
+                    sx={{ color: "text.secondary", fontSize: "0.8rem" }}
                   >
                     مرحباً
                   </Typography>
                   <Typography
                     variant="body1"
-                    sx={{ color: "white", fontWeight: 700, fontSize: "1rem" }}
+                    sx={{ color: "text.primary", fontWeight: 700, fontSize: "1rem" }}
                   >
                     {user?.displayName || user?.email.split("@")[0]}
                   </Typography>
@@ -179,10 +175,10 @@ export const HomePage = () => {
                 <IconButton
                   onClick={toggleTheme}
                   sx={{
-                    color: "white",
-                    bgcolor: "rgba(255,255,255,0.15)",
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
-                    margin: "0 !important", // Remove potential margin interference
+                    color: "text.primary",
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
+                    margin: "0 !important",
                   }}
                   size="small"
                 >
@@ -195,9 +191,9 @@ export const HomePage = () => {
                 <IconButton
                   onClick={handleLogout}
                   sx={{
-                    color: "white",
-                    bgcolor: "rgba(255,255,255,0.15)",
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.25)" },
+                    color: "text.primary",
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.14) },
                     margin: "0 !important",
                   }}
                   size="small"
@@ -209,41 +205,41 @@ export const HomePage = () => {
 
           {/* Title */}
           <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Typography
-              variant="h4"
-              sx={{
-                color: "white",
-                fontWeight: 900,
-                mb: 0.5,
-                fontSize: { xs: "1.5rem", sm: "2rem" },
-                letterSpacing: 0.5,
-                textShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              المهندس محمد التركي
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: "rgba(255,255,255,0.95)",
-                fontWeight: 500,
-                fontSize: { xs: "0.875rem", sm: "1rem" },
-                letterSpacing: 0.3,
-              }}
-            >
-              إدارة الديون والفواتير
-            </Typography>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      color: "text.primary",
+                      fontWeight: 900,
+                      mb: 0.5,
+                      fontSize: { xs: "1.5rem", sm: "2rem" },
+                      letterSpacing: "-0.02em",
+                      textWrap: "balance",
+                    }}
+                  >
+                    المهندس محمد التركي
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: "text.secondary",
+                      fontWeight: 500,
+                      fontSize: { xs: "0.875rem", sm: "1rem" },
+                      letterSpacing: 0.05,
+                    }}
+                  >
+                    إدارة الديون والفواتير
+                  </Typography>
           </Box>
 
           {/* Profit Card */}
           <Card
             sx={{
-              background: "rgba(255,255,255,0.15)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: 3,
-              color: "white",
-              boxShadow: "none",
+              boxShadow:
+                theme.palette.mode === "dark"
+                  ? "0 4px 24px rgba(0,0,0,0.35)"
+                  : "0 8px 32px rgba(28,25,23,0.06)",
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
             }}
           >
             <CardContent sx={{ py: 2.5 }}>
@@ -255,17 +251,18 @@ export const HomePage = () => {
                 <Box>
                   <Typography
                     variant="caption"
-                    sx={{ opacity: 0.9, fontSize: "0.75rem" }}
+                    color="text.secondary"
+                    sx={{ fontSize: "0.75rem", display: "block", mb: 0.5 }}
                   >
-                    إجمالي الأرباح
+                    إجمالي النسبة المتفق عليها
                   </Typography>
-                  <Typography variant="h5" fontWeight={900}>
+                  <Typography variant="h5" fontWeight={900} color="text.primary">
                     {formatCurrency(stats.profit)}
                   </Typography>
                   <Typography
                     variant="caption"
+                    color="text.secondary"
                     sx={{
-                      opacity: 0.8,
                       fontSize: "0.7rem",
                       mt: 0.5,
                       display: "block",
@@ -279,13 +276,13 @@ export const HomePage = () => {
                     width: 50,
                     height: 50,
                     borderRadius: 2.5,
-                    bgcolor: "rgba(255,255,255,0.2)",
+                    bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.2 : 0.12),
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
-                  <TrendingUp sx={{ fontSize: 28 }} />
+                  <TrendingUp sx={{ fontSize: 28, color: "success.main" }} />
                 </Box>
               </Stack>
             </CardContent>
@@ -403,15 +400,15 @@ export const HomePage = () => {
                     borderRadius: 2,
                     bgcolor:
                       theme.palette.mode === "dark"
-                        ? "rgba(99, 102, 241, 0.2)"
-                        : "#e0e7ff",
+                        ? alpha(theme.palette.primary.main, 0.2)
+                        : alpha(theme.palette.primary.main, 0.1),
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <CloudSync sx={{ fontSize: 26, color: "#6366f1" }} />
+                  <CloudSync sx={{ fontSize: 26, color: "primary.main" }} />
                 </Box>
                 <Box>
                   <Typography variant="body1" fontWeight={700}>

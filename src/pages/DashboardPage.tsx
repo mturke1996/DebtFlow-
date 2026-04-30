@@ -4,16 +4,15 @@ import {
   Box,
   Card,
   CardContent,
-  Grid,
   Typography,
   Container,
   Stack,
   IconButton,
-  Avatar,
   useTheme,
   LinearProgress,
   Chip,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   ArrowBack,
   TrendingUp,
@@ -24,9 +23,7 @@ import {
   Warning,
   Brightness4,
   Brightness7,
-  CheckCircle,
 } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useDataStore } from '@/store/useDataStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { calculateFinancialSummary, formatCurrency } from '@/utils/calculations';
@@ -67,26 +64,61 @@ export const DashboardPage = () => {
       .slice(0, 5);
   }, [clients, debts]);
 
-  const chartData = summary.monthlyData.slice(-6).map((data) => ({
-    name: `${data.month}/${data.year}`,
-    فواتير: data.totalInvoiced,
-    مدفوعات: data.totalCollected,
-    ديون: data.totalDebt,
-  }));
+  const kpis = [
+    {
+      label: 'إجمالي الديون',
+      value: summary.totalDebt,
+      icon: AccountBalance,
+      fg: theme.palette.error.main,
+      bg: alpha(theme.palette.error.main, theme.palette.mode === 'light' ? 0.1 : 0.18),
+    },
+    {
+      label: 'المبالغ المحصلة',
+      value: summary.totalPaid,
+      icon: TrendingUp,
+      fg: theme.palette.success.main,
+      bg: alpha(theme.palette.success.main, theme.palette.mode === 'light' ? 0.1 : 0.18),
+    },
+    {
+      label: 'المتبقي',
+      value: summary.totalRemaining,
+      icon: TrendingDown,
+      fg: theme.palette.warning.main,
+      bg: alpha(theme.palette.warning.main, theme.palette.mode === 'light' ? 0.1 : 0.18),
+    },
+    {
+      label: 'المتأخرات',
+      value: summary.overdueAmount,
+      icon: Warning,
+      fg: theme.palette.error.light,
+      bg: alpha(theme.palette.error.main, theme.palette.mode === 'light' ? 0.08 : 0.15),
+    },
+  ];
+
+  const quickStats = [
+    { icon: People, label: 'عميل', value: clients.length, color: 'primary' as const },
+    { icon: Receipt, label: 'فاتورة', value: invoices.length, color: 'success' as const },
+    {
+      icon: AccountBalance,
+      label: 'دين نشط',
+      value: debts.filter((d) => d.status !== 'paid').length,
+      color: 'warning' as const,
+    },
+  ];
 
   return (
     <Box
       sx={{
-        minHeight: '100vh',
-        background: theme.palette.mode === 'dark' ? '#0f172a' : '#f8fafc',
-        pb: 3,
+        minHeight: '100dvh',
+        bgcolor: 'background.default',
+        pb: 4,
       }}
     >
-      {/* Header */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-          pt: 2,
+          backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'light' ? 0.1 : 0.22),
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+          pt: 'calc(16px + env(safe-area-inset-top))',
           pb: 3,
           px: 2,
         }}
@@ -94,154 +126,94 @@ export const DashboardPage = () => {
         <Container maxWidth="sm">
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
             <Stack direction="row" alignItems="center" spacing={2}>
-              <IconButton onClick={() => navigate('/')} sx={{ color: 'white', marginLeft: '8px' }}>
+              <IconButton
+                onClick={() => navigate('/')}
+                sx={{ color: 'text.primary', marginLeft: '8px' }}
+                aria-label="رجوع"
+              >
                 <ArrowBack />
               </IconButton>
-              <Typography variant="h5" fontWeight={800} sx={{ color: 'white' }}>
+              <Typography variant="h5" fontWeight={800} color="text.primary">
                 لوحة التحكم
               </Typography>
             </Stack>
-            <IconButton onClick={toggleTheme} sx={{ color: 'white' }}>
+            <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
               {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
           </Stack>
         </Container>
       </Box>
 
-      <Container maxWidth="sm" sx={{ mt: -2 }}>
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 5 }}>
-          <Grid item xs={6}>
-            <Card
-              sx={{
-                borderRadius: 2.5,
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(239,68,68,0.3)',
-              }}
-            >
-              <CardContent sx={{ p: 3 }}>
-                <AccountBalance sx={{ fontSize: 28, mb: 2 }} />
-                <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', mb: 1.5 }}>
-                  إجمالي الديون
-                </Typography>
-                <Typography variant="h6" fontWeight={800}>
-                  {formatCurrency(summary.totalDebt)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+      <Container maxWidth="sm" sx={{ mt: -1 }}>
+        {/* Stats */}
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          gap={2}
+          sx={{ mb: 3, '& > *': { flexGrow: 1, minWidth: 'calc(50% - 8px)' } }}
+        >
+          {kpis.map((kpi) => {
+            const KpiIcon = kpi.icon;
+            return (
+              <Card key={kpi.label} sx={{ borderRadius: 2.5, overflow: 'visible' }}>
+                <CardContent sx={{ p: 2.25 }}>
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                        {kpi.label}
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight={800}
+                        sx={{
+                          fontFeatureSettings: '"tnum"',
+                          fontVariantNumeric: 'tabular-nums',
+                          letterSpacing: '-0.02em',
+                        }}
+                      >
+                        {formatCurrency(kpi.value)}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2,
+                        bgcolor: kpi.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <KpiIcon sx={{ fontSize: 26, color: kpi.fg }} />
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Stack>
 
-          <Grid item xs={6}>
-            <Card
-              sx={{
-                borderRadius: 2.5,
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-              }}
-            >
-              <CardContent sx={{ p: 2 }}>
-                <TrendingUp sx={{ fontSize: 28, mb: 1 }} />
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  المبالغ المحصلة
-                </Typography>
-                <Typography variant="h6" fontWeight={800}>
-                  {formatCurrency(summary.totalPaid)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Card
-              sx={{
-                borderRadius: 2.5,
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
-              }}
-            >
-              <CardContent sx={{ p: 2 }}>
-                <TrendingDown sx={{ fontSize: 28, mb: 1 }} />
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  المتبقي
-                </Typography>
-                <Typography variant="h6" fontWeight={800}>
-                  {formatCurrency(summary.totalRemaining)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Card
-              sx={{
-                borderRadius: 2.5,
-                background: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(236,72,153,0.3)',
-              }}
-            >
-              <CardContent sx={{ p: 2 }}>
-                <Warning sx={{ fontSize: 28, mb: 1 }} />
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  المتأخرات
-                </Typography>
-                <Typography variant="h6" fontWeight={800}>
-                  {formatCurrency(summary.overdueAmount)}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Quick Info */}
-        <Grid container spacing={3} sx={{ mb: 5 }}>
-          <Grid item xs={4}>
-            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
-              <CardContent sx={{ p: 3 }}>
-                <People sx={{ fontSize: 32, color: 'primary.main', mb: 1.5 }} />
-                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
-                  {clients.length}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  عميل
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={4}>
-            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-                  <Receipt sx={{ fontSize: 32, color: 'success.main' }} />
-                </Box>
-                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
-                  {invoices.length}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  فاتورة
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={4}>
-            <Card sx={{ borderRadius: 3, textAlign: 'center' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-                  <AccountBalance sx={{ fontSize: 32, color: 'warning.main' }} />
-                </Box>
-                <Typography variant="h5" fontWeight={800} sx={{ mb: 1 }}>
-                  {debts.filter((d) => d.status !== 'paid').length}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  دين نشط
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        {/* Quick counts */}
+        <Stack direction="row" gap={2} sx={{ mb: 4 }}>
+          {quickStats.map((qs) => {
+            const QsIcon = qs.icon;
+            return (
+              <Card key={qs.label} sx={{ flex: 1, borderRadius: 2.5, textAlign: 'center' }}>
+                <CardContent sx={{ py: 2 }}>
+                  <QsIcon sx={{ fontSize: 28, mb: 1, color: `${qs.color}.main` }} />
+                  <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5 }}>
+                    {qs.value}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {qs.label}
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Stack>
 
         {/* Top Debtors */}
         <Typography variant="h6" fontWeight={700} sx={{ mb: 3, px: 0.5 }}>

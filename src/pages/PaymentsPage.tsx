@@ -27,6 +27,7 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Add,
   Search,
@@ -43,7 +44,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Payment } from '@/types';
 import { formatCurrency } from '@/utils/calculations';
-import { generatePaymentsSummaryPDF } from '@/utils/pdfGenerator';
+import { downloadPdf } from '@/utils/pdfService';
+import { PaymentsSummaryStyledPDF } from '@/components/pdf/StyledPDFs';
 import dayjs from 'dayjs';
 
 const paymentSchema = z.object({
@@ -63,7 +65,10 @@ export const PaymentsPage = () => {
   const { clients, invoices, payments, addPayment, updatePayment, deletePayment } = useDataStore();
   
   const handleShareTotal = () => {
-    generatePaymentsSummaryPDF(payments, clients, invoices);
+    downloadPdf(
+      <PaymentsSummaryStyledPDF payments={payments} clients={clients} />,
+      'payments-summary.pdf'
+    );
   };
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,7 +174,6 @@ export const PaymentsPage = () => {
       handleCloseDialog();
       setSnackbarOpen(true);
     } catch (error: any) {
-      console.error('Error saving payment:', error);
       const errorMessage = error?.message || error?.toString() || "حدث خطأ أثناء الحفظ";
       setSnackbarMessage(errorMessage);
       setSnackbarOpen(true);
@@ -200,20 +204,12 @@ export const PaymentsPage = () => {
   const totalPayments = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: theme.palette.mode === 'dark' ? '#0f172a' : '#f8fafc',
-        pb: 3,
-      }}
-    >
-      {/* Header */}
+    <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default', pb: 3 }}>
       <Box
         sx={{
-          background: theme.palette.mode === 'light' 
-            ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-            : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-          pt: 2,
+          backgroundColor: alpha(theme.palette.success.main, theme.palette.mode === 'light' ? 0.11 : 0.2),
+          borderBottom: `1px solid ${alpha(theme.palette.success.main, 0.25)}`,
+          pt: 'calc(16px + env(safe-area-inset-top))',
           pb: 3,
           px: 2,
         }}
@@ -226,10 +222,10 @@ export const PaymentsPage = () => {
               spacing={2}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <IconButton onClick={() => navigate('/')} sx={{ color: 'white', ml: 1 }}>
+                <IconButton onClick={() => navigate('/')} sx={{ color: 'text.primary', ml: 1 }} aria-label="رجوع">
                   <ArrowBack />
                 </IconButton>
-                <Typography variant="h5" fontWeight={800} sx={{ color: 'white', flexGrow: 1 }}>
+                <Typography variant="h5" fontWeight={800} sx={{ color: 'text.primary', flexGrow: 1 }}>
                   المدفوعات ({payments.length})
                 </Typography>
               </Box>
@@ -237,16 +233,15 @@ export const PaymentsPage = () => {
               <Stack direction="row" spacing={1.5} sx={{ width: { xs: '100%', sm: 'auto' } }}>
                 {payments.length > 0 && (
                   <Button
-                    variant="contained"
+                    variant="outlined"
                     onClick={handleShareTotal}
-                    fullWidth={true} // Full width on mobile via stack stretch
+                    fullWidth={true}
                     sx={{
-                      bgcolor: 'rgba(255,255,255,0.2)',
-                      color: 'white',
+                      borderColor: alpha(theme.palette.success.dark, 0.45),
+                      color: 'success.dark',
                       fontWeight: 700,
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                      '&:hover': { borderColor: 'success.main', bgcolor: alpha(theme.palette.success.main, 0.08) },
                       borderRadius: 2,
-                      border: '1px solid rgba(255,255,255,0.3)',
                       flex: 1,
                     }}
                     startIcon={<Share />}
@@ -256,15 +251,14 @@ export const PaymentsPage = () => {
                 )}
                 <Button
                   variant="contained"
+                  color="success"
                   onClick={() => handleOpenDialog()}
                   fullWidth={true}
                   sx={{
-                    bgcolor: 'white',
-                    color: 'success.main',
                     fontWeight: 700,
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
                     borderRadius: 2,
                     flex: 1,
+                    boxShadow: 'none',
                   }}
                   startIcon={<Add />}
                 >
@@ -277,34 +271,34 @@ export const PaymentsPage = () => {
           {/* Stats Card */}
           <Card
             sx={{
-              bgcolor: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              bgcolor: 'background.paper',
               borderRadius: 2.5,
-              color: 'white',
-              boxShadow: 'none',
+              border: `1px solid ${alpha(theme.palette.success.main, 0.22)}`,
+              boxShadow: theme.palette.mode === 'light'
+                ? `0 2px 12px ${alpha('#1c1917', 0.06)}`
+                : `0 4px 24px ${alpha('#000', 0.35)}`,
             }}
           >
             <CardContent sx={{ py: 2 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                     إجمالي المدفوعات
                   </Typography>
-                  <Typography variant="h5" fontWeight={900}>
+                  <Typography variant="h5" fontWeight={900} color="text.primary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(totalPayments)}
                   </Typography>
                 </Box>
                 <Avatar
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.2)',
+                    bgcolor: alpha(theme.palette.success.main, 0.18),
                     width: { xs: 40, sm: 50 },
                     height: { xs: 40, sm: 50 },
                     flexShrink: 0,
                     marginLeft: { xs: '16px', sm: '24px' },
                   }}
                 >
-                  <PaymentIcon sx={{ fontSize: 28 }} />
+                  <PaymentIcon sx={{ fontSize: 28, color: 'success.dark' }} />
                 </Avatar>
               </Stack>
             </CardContent>
@@ -502,15 +496,13 @@ export const PaymentsPage = () => {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box
             sx={{
-              background: theme.palette.mode === 'light' 
-                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-              color: 'white',
+              bgcolor: theme.palette.success.main,
+              color: theme.palette.success.contrastText,
               p: 2,
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
-              <IconButton onClick={handleCloseDialog} sx={{ color: 'white' }}>
+              <IconButton onClick={handleCloseDialog} sx={{ color: 'inherit' }}>
                 <ArrowBack />
               </IconButton>
               <Typography variant="h6" fontWeight={700}>
