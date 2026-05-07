@@ -6,9 +6,17 @@ import type {
   Expense,
 } from "../types";
 import { PRINT_COMPANY_INFO } from "../constants/pdfCompanyInfo";
-import { formatCurrency } from "./calculations";
 import dayjs from "dayjs";
 import QRCode from "qrcode";
+
+const formatCurrency = (amount: number) => {
+  const value = Number(amount || 0);
+  const formatted = Number.isInteger(value)
+    ? value.toString()
+    : value.toFixed(3).replace(/\.?0+$/, "");
+
+  return `<span dir="ltr" style="direction:ltr; unicode-bidi:isolate; white-space:nowrap; display:inline-flex; gap:3px; align-items:baseline;"><span>${formatted}</span><span>د.ل</span></span>`;
+};
 
 export const generateInvoicePDF = (invoice: Invoice, client: Client) => {
   const COMPANY_INFO = PRINT_COMPANY_INFO;

@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 import type { Client, Invoice } from "@/types";
 import { registerPdfFonts } from "./pdfFonts";
+import { PdfMoneyText } from "./pdfBrandKit";
 
 registerPdfFonts();
 
@@ -11,9 +12,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: 700, marginBottom: 10, textAlign: "right" },
   row: { flexDirection: "row-reverse", justifyContent: "space-between", marginBottom: 6 },
 });
-
-const money = (value: number) =>
-  new Intl.NumberFormat("ar-LY", { style: "currency", currency: "LYD" }).format(value || 0);
 
 export const InvoicePDF = ({ invoice, client }: { invoice: Invoice; client: Client }) => (
   <Document>
@@ -26,12 +24,12 @@ export const InvoicePDF = ({ invoice, client }: { invoice: Invoice; client: Clie
       {invoice.items.map((item) => (
         <View key={item.id} style={styles.row}>
           <Text>{item.description}</Text>
-          <Text>{money(item.total)}</Text>
+          <PdfMoneyText amount={item.total} />
         </View>
       ))}
       <View style={styles.row}>
         <Text>الإجمالي</Text>
-        <Text>{money(invoice.total)}</Text>
+        <PdfMoneyText amount={invoice.total} />
       </View>
     </Page>
   </Document>

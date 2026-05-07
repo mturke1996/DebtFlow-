@@ -19,6 +19,8 @@ export const PDFPalette = {
   paleGold: "#fffcf5",
 };
 
+export const LIBYAN_CURRENCY_LABEL = "د.ل";
+
 export const pdfBrandStyles = StyleSheet.create({
   page: {
     fontFamily: PDF_FONT_FAMILY,
@@ -335,7 +337,7 @@ export const pdfBrandStyles = StyleSheet.create({
     textAlign: "left",
   },
 
-  totalsBox: { width: 240, alignSelf: "flex-end", marginTop: 10 },
+  totalsBox: { width: 240, alignSelf: "flex-start", marginTop: 10 },
   totalLine: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -533,5 +535,40 @@ export function pdfFmtDate(iso?: string) {
 }
 
 export function pdfFmtMoneyLibyan(n: number) {
-  return `${pdfFmtNum(n)} د.ل`;
+  return `${LIBYAN_CURRENCY_LABEL} ${pdfFmtNum(n)}`;
 }
+
+/** مكوّن يعرض المبلغ ثم العملة بشكل مضمون بدون انعكاس RTL */
+export const PdfMoneyText = ({
+  amount,
+  style,
+  currStyle,
+  containerStyle,
+}: {
+  amount: number;
+  style?: any;
+  currStyle?: any;
+  containerStyle?: any;
+}) => (
+  <View
+    wrap={false}
+    style={[
+      {
+        flexDirection: "row-reverse",
+        alignItems: "baseline",
+        justifyContent: "flex-start",
+      },
+      containerStyle,
+    ]}
+  >
+    <Text style={style}>{pdfFmtNum(amount)}</Text>
+    <Text
+      style={[
+        { fontSize: 9, color: PDFPalette.text, fontWeight: "bold", marginRight: 3 },
+        currStyle,
+      ]}
+    >
+      {LIBYAN_CURRENCY_LABEL}
+    </Text>
+  </View>
+);

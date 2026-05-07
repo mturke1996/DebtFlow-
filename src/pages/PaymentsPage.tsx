@@ -35,8 +35,7 @@ import {
   Delete,
   ArrowBack,
   Payment as PaymentIcon,
-  PictureAsPdf,
-  Share,
+  WhatsApp,
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { useForm, Controller } from 'react-hook-form';
@@ -44,7 +43,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Payment } from '@/types';
 import { formatCurrency } from '@/utils/calculations';
-import { downloadPdf } from '@/utils/pdfService';
+import { sharePdfToWhatsApp } from '@/utils/pdfService';
 import { PaymentsSummaryStyledPDF } from '@/components/pdf/StyledPDFs';
 import dayjs from 'dayjs';
 
@@ -65,9 +64,13 @@ export const PaymentsPage = () => {
   const { clients, invoices, payments, addPayment, updatePayment, deletePayment } = useDataStore();
   
   const handleShareTotal = () => {
-    downloadPdf(
+    sharePdfToWhatsApp(
       <PaymentsSummaryStyledPDF payments={payments} clients={clients} />,
-      'payments-summary.pdf'
+      'payments-summary.pdf',
+      {
+        title: 'تقرير المدفوعات',
+        text: 'تقرير المدفوعات بصيغة PDF جاهز للمراجعة.',
+      }
     );
   };
   
@@ -244,9 +247,9 @@ export const PaymentsPage = () => {
                       borderRadius: 2,
                       flex: 1,
                     }}
-                    startIcon={<Share />}
+                    startIcon={<WhatsApp />}
                   >
-                    مشاركة
+                    واتساب PDF
                   </Button>
                 )}
                 <Button

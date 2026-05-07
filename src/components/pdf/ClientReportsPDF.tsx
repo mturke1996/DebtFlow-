@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 import type { Client, Expense, Payment } from "@/types";
 import { registerPdfFonts } from "./pdfFonts";
+import { PdfMoneyText } from "./pdfBrandKit";
 
 registerPdfFonts();
 
@@ -46,9 +47,6 @@ const styles = StyleSheet.create({
   bold: { fontWeight: 700 },
 });
 
-const money = (value: number) =>
-  new Intl.NumberFormat("ar-LY", { style: "currency", currency: "LYD", maximumFractionDigits: 2 }).format(value || 0);
-
 interface Props {
   client: Client;
   expenses: Expense[];
@@ -83,19 +81,19 @@ export const ClientReportsPDF = ({ client, expenses, payments, profitPercentage 
         <View style={styles.block}>
           <View style={styles.row}>
             <Text>إجمالي المصروفات</Text>
-            <Text style={styles.bold}>{money(totalExpenses)}</Text>
+            <PdfMoneyText amount={totalExpenses} style={styles.bold} />
           </View>
           <View style={styles.row}>
             <Text>قيمة النسبة المتفق عليها</Text>
-            <Text style={styles.bold}>{money(profit)}</Text>
+            <PdfMoneyText amount={profit} style={styles.bold} />
           </View>
           <View style={styles.row}>
             <Text>المدفوع</Text>
-            <Text style={styles.bold}>{money(totalPaid)}</Text>
+            <PdfMoneyText amount={totalPaid} style={styles.bold} />
           </View>
           <View style={styles.row}>
             <Text>المتبقي المستحق</Text>
-            <Text style={styles.bold}>{money(remaining)}</Text>
+            <PdfMoneyText amount={remaining} style={styles.bold} />
           </View>
         </View>
 
@@ -112,7 +110,7 @@ export const ClientReportsPDF = ({ client, expenses, payments, profitPercentage 
             <Text style={styles.c1}>{exp.expenseNumber || `EXP-${String(idx + 1).padStart(4, "0")}`}</Text>
             <Text style={styles.c2}>{exp.description}</Text>
             <Text style={styles.c3}>{exp.category}</Text>
-            <Text style={styles.c4}>{money(exp.amount)}</Text>
+            <PdfMoneyText amount={exp.amount} containerStyle={styles.c4} />
             <Text style={styles.c5}>{dayjs(exp.date).format("DD/MM/YYYY")}</Text>
           </View>
         ))}
@@ -130,7 +128,7 @@ export const ClientReportsPDF = ({ client, expenses, payments, profitPercentage 
             <Text style={styles.c1}>{idx + 1}</Text>
             <Text style={styles.c2}>{pay.paymentMethod}</Text>
             <Text style={styles.c3}>{pay.notes || "-"}</Text>
-            <Text style={styles.c4}>{money(pay.amount)}</Text>
+            <PdfMoneyText amount={pay.amount} containerStyle={styles.c4} />
             <Text style={styles.c5}>{dayjs(pay.paymentDate).format("DD/MM/YYYY")}</Text>
           </View>
         ))}

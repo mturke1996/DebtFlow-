@@ -31,11 +31,10 @@ import {
   CheckCircle,
   Send,
   Schedule,
-  Share,
 } from '@mui/icons-material';
 import { useDataStore } from '@/store/useDataStore';
 import { formatCurrency } from '@/utils/calculations';
-import { downloadPdf } from '@/utils/pdfService';
+import { downloadPdf, sharePdfToWhatsApp } from '@/utils/pdfService';
 import { ExpenseInvoiceStyledPDF, ExpenseInvoicesSummaryStyledPDF } from '@/components/pdf/StyledPDFs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ar';
@@ -50,9 +49,13 @@ export const ExpenseInvoicesPage = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
 
   const handleShareTotal = () => {
-    downloadPdf(
+    sharePdfToWhatsApp(
       <ExpenseInvoicesSummaryStyledPDF expenseInvoices={expenseInvoices} clients={clients} />,
-      'expense-invoices-summary.pdf'
+      'expense-invoices-summary.pdf',
+      {
+        title: 'تقرير فواتير المصروفات',
+        text: 'تقرير فواتير المصروفات بصيغة PDF جاهز للمراجعة.',
+      }
     );
   };
 
@@ -86,8 +89,16 @@ export const ExpenseInvoicesPage = () => {
       `*الإجمالي:* ${formatCurrency(invoice.totalAmount)}\n\n` +
       `يرجى مراجعة التفاصيل الكاملة في المرفق.`;
 
-    const whatsappUrl = `https://wa.me/${client.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    sharePdfToWhatsApp(
+      <ExpenseInvoiceStyledPDF invoice={invoice} client={client} />,
+      `expense-invoice-${invoice.invoiceNumber}.pdf`,
+      {
+        phone: client.phone,
+        title: `فاتورة مصروفات ${invoice.invoiceNumber}`,
+        text: message,
+        whatsappMessage: message,
+      }
+    );
   };
 
   const handlePreview = (invoice: ExpenseInvoice) => {
@@ -146,10 +157,10 @@ export const ExpenseInvoicesPage = () => {
             variant="contained"
             color="success"
             onClick={handleShareTotal}
-            startIcon={<Share />}
+            startIcon={<WhatsApp />}
             sx={{ borderRadius: 2 }}
           >
-            مشاركة المجموع
+            واتساب المجموع
           </Button>
         )}
       </Stack>
@@ -362,22 +373,45 @@ export const ExpenseInvoicesPage = () => {
         <DialogActions>
           <Button onClick={() => setPreviewDialogOpen(false)}>إغلاق</Button>
           {selectedInvoice && (
-            <Button
-              variant="contained"
-              startIcon={<PictureAsPdf />}
-              onClick={() => {
-                const client = clients.find((c) => c.id === selectedInvoice.clientId);
-                if (client) {
-                  downloadPdf(
-                    <ExpenseInvoiceStyledPDF invoice={selectedInvoice} client={client} />,
-                    `expense-invoice-${selectedInvoice.invoiceNumber}.pdf`
-                  );
-                }
-                setPreviewDialogOpen(false);
-              }}
-            >
-              تصدير PDF
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                color="success"
+                startIcon={<WhatsApp />}
+                onClick={() => {
+                  const client = clients.find((c) => c.id === selectedInvoice.clientId);
+                  if (client) {
+                    sharePdfToWhatsApp(
+                      <ExpenseInvoiceStyledPDF invoice={selectedInvoice} client={client} />,
+                      `expense-invoice-${selectedInvoice.invoiceNumber}.pdf`,
+                      {
+                        phone: client.phone,
+                        title: `فاتورة مصروفات ${selectedInvoice.invoiceNumber}`,
+                        text: `فاتورة مصروفات ${selectedInvoice.invoiceNumber} للعميل ${client.name}`,
+                      }
+                    );
+                  }
+                }}
+              >
+                واتساب
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<PictureAsPdf />}
+                onClick={() => {
+                  const client = clients.find((c) => c.id === selectedInvoice.clientId);
+                  if (client) {
+                    downloadPdf(
+                      <ExpenseInvoiceStyledPDF invoice={selectedInvoice} client={client} />,
+                      `expense-invoice-${selectedInvoice.invoiceNumber}.pdf`
+                    );
+                  }
+                  setPreviewDialogOpen(false);
+                }}
+              >
+                تصدير PDF
+              </Button>
+            </>
           )}
         </DialogActions>
       </Dialog>

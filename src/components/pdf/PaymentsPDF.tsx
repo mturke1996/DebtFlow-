@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import dayjs from "dayjs";
 import type { Client, Payment } from "@/types";
 import { registerPdfFonts } from "./pdfFonts";
+import { PdfMoneyText } from "./pdfBrandKit";
 
 registerPdfFonts();
 
@@ -18,9 +19,6 @@ const styles = StyleSheet.create({
   c5: { width: "26%" },
   headerRow: { flexDirection: "row-reverse", backgroundColor: "#10b981", color: "#fff", padding: 6 },
 });
-
-const money = (n: number) =>
-  new Intl.NumberFormat("ar-LY", { style: "currency", currency: "LYD", maximumFractionDigits: 2 }).format(n || 0);
 
 const methodLabel = (m: Payment["paymentMethod"]) => {
   if (m === "cash") return "نقدي";
@@ -52,13 +50,13 @@ export const PaymentsPDF = ({ client, payments }: { client: Client; payments: Pa
             <Text style={styles.c1}>{i + 1}</Text>
             <Text style={styles.c2}>{methodLabel(p.paymentMethod)}</Text>
             <Text style={styles.c3}>{p.notes || "-"}</Text>
-            <Text style={styles.c4}>{money(p.amount)}</Text>
+            <PdfMoneyText amount={p.amount} containerStyle={styles.c4} />
             <Text style={styles.c5}>{dayjs(p.paymentDate).format("DD/MM/YYYY")}</Text>
           </View>
         ))}
         <View style={[styles.head, { marginTop: 10 }]}>
           <Text>الإجمالي</Text>
-          <Text>{money(total)}</Text>
+          <PdfMoneyText amount={total} />
         </View>
       </Page>
     </Document>

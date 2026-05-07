@@ -33,12 +33,14 @@ import {
   Receipt,
   Visibility,
   Delete,
+  WhatsApp,
+  Edit,
 } from "@mui/icons-material";
 import { useDataStore } from "@/store/useDataStore";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import type { Invoice, InvoiceItem, Client } from "@/types";
 import { formatCurrency } from "@/utils/calculations";
-import { downloadPdf } from "@/utils/pdfService";
+import { downloadPdf, sharePdfToWhatsApp } from "@/utils/pdfService";
 import { InvoiceStyledPDF } from "@/components/pdf/StyledPDFs";
 import { getNextInvoiceNumber } from "@/utils/invoiceNumber";
 import dayjs from "dayjs";
@@ -54,16 +56,39 @@ const QUICK_ITEMS = [
   { description: "أعمال سباكة", quantity: "1", unitPrice: "0" },
 ];
 
+const getInvoiceClient = (invoice: Invoice, clients: Client[]): Client | undefined => {
+  const isTempClient = invoice.clientId.startsWith("temp-");
+  let client = clients.find((c) => c.id === invoice.clientId);
+
+  if (isTempClient && !client && invoice.notes) {
+    const match = invoice.notes.match(/__TEMP_CLIENT__name:(.+?)__phone:(.+?)__/);
+    if (match) {
+      client = {
+        id: invoice.clientId,
+        name: match[1].trim(),
+        phone: match[2].trim(),
+        email: "",
+        address: "",
+        type: "individual",
+        createdAt: invoice.createdAt,
+        updatedAt: invoice.updatedAt,
+      } as Client;
+    }
+  }
+  return client;
+};
+
 export const InvoicesPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { clients, invoices, addInvoice, deleteInvoice } = useDataStore();
+  const { clients, invoices, addInvoice, updateInvoice, deleteInvoice } = useDataStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientPhone, setNewClientPhone] = useState("");
@@ -121,6 +146,7 @@ export const InvoicesPage = () => {
   }, [invoices, clients, searchQuery, statusFilter]);
 
   const handleOpenDialog = () => {
+    setEditingInvoiceId(null);
     reset({
       clientId: "",
       items: [{ description: "", quantity: "", unitPrice: "" }],
@@ -132,6 +158,44 @@ export const InvoicesPage = () => {
     setNewClientName("");
     setNewClientPhone("");
     setTempClients([]); // Clear temporary clients when opening dialog
+    setDialogOpen(true);
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    const client = getInvoiceClient(invoice, clients);
+    
+    // If it's a temp client, make sure we add it to tempClients if it's not there so the select dropdown works
+    if (invoice.clientId.startsWith("temp-") && client) {
+      setTempClients((prev) => {
+        if (!prev.find((c) => c.id === client.id)) {
+          return [...prev, client];
+        }
+        return prev;
+      });
+    }
+
+    let displayNotes = invoice.notes || "";
+    displayNotes = displayNotes.replace(/__TEMP_CLIENT__name:.+?__phone:.+?__/g, "").trim();
+
+    // Calculate approximate discount if we can (subtotal - taxableBase)
+    const calculatedSubtotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    const taxableBase = invoice.total - invoice.taxAmount;
+    const discount = Math.max(0, calculatedSubtotal - taxableBase);
+
+    reset({
+      clientId: invoice.clientId,
+      items: invoice.items.map(item => ({
+        description: item.description,
+        quantity: item.quantity.toString(),
+        unitPrice: item.unitPrice.toString(),
+      })),
+      discount: discount.toString(),
+      taxRate: invoice.taxRate.toString(),
+      notes: displayNotes,
+      dueDate: dayjs(invoice.dueDate).format("YYYY-MM-DD"),
+    });
+    
+    setEditingInvoiceId(invoice.id);
     setDialogOpen(true);
   };
 
@@ -263,8 +327,26 @@ export const InvoicesPage = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      await addInvoice(newInvoice);
+      if (editingInvoiceId) {
+        await updateInvoice(editingInvoiceId, {
+          clientId: finalClientId,
+          items,
+          subtotal,
+          taxRate: formTaxRate,
+          taxAmount,
+          total,
+          dueDate: data.dueDate,
+          notes: invoiceNotes,
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success("تم تحديث الفاتورة بنجاح");
+      } else {
+        await addInvoice(newInvoice);
+        toast.success("تم إنشاء الفاتورة بنجاح");
+      }
+
       setDialogOpen(false);
+      setEditingInvoiceId(null);
       setTempClients([]); // Clear temporary clients after invoice creation
       reset({
         clientId: "",
@@ -274,7 +356,6 @@ export const InvoicesPage = () => {
         notes: "",
         dueDate: dayjs().add(30, "days").format("YYYY-MM-DD"),
       });
-      toast.success("تم إنشاء الفاتورة بنجاح");
     } catch (error) {
       toast.error("تعذر إنشاء الفاتورة، حاول مرة أخرى");
     } finally {
@@ -404,7 +485,7 @@ export const InvoicesPage = () => {
             </Card>
           ) : (
             filteredInvoices.map((invoice) => {
-              const client = clients.find((c) => c.id === invoice.clientId);
+              const client = getInvoiceClient(invoice, clients);
               return (
                 <Card
                   key={invoice.id}
@@ -529,7 +610,22 @@ export const InvoicesPage = () => {
                       </Button>
                       <IconButton
                         size="small"
-                        color="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditInvoice(invoice);
+                        }}
+                        sx={{
+                          borderRadius: 1.5,
+                          width: 40,
+                          height: 40,
+                          marginLeft: "8px",
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        }}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (client) {
@@ -547,6 +643,34 @@ export const InvoicesPage = () => {
                         }}
                       >
                         <PictureAsPdf fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (client) {
+                            sharePdfToWhatsApp(
+                              <InvoiceStyledPDF invoice={invoice} client={client} />,
+                              `invoice-${invoice.invoiceNumber}.pdf`,
+                              {
+                                phone: client.phone,
+                                title: `فاتورة ${invoice.invoiceNumber}`,
+                                text: `فاتورة ${invoice.invoiceNumber} للعميل ${client.name}`,
+                              }
+                            );
+                          }
+                        }}
+                        title="مشاركة PDF عبر واتساب"
+                        aria-label="مشاركة PDF عبر واتساب"
+                        color="success"
+                        sx={{
+                          borderRadius: 1.5,
+                          width: 40,
+                          height: 40,
+                          marginLeft: "8px",
+                        }}
+                      >
+                        <WhatsApp fontSize="small" />
                       </IconButton>
                       <IconButton
                         size="small"
@@ -601,7 +725,7 @@ export const InvoicesPage = () => {
                 <ArrowBack />
               </IconButton>
               <Typography variant="h6" fontWeight={700}>
-                إنشاء فاتورة
+                {editingInvoiceId ? "تعديل الفاتورة" : "إنشاء فاتورة"}
               </Typography>
             </Stack>
           </Box>
@@ -964,7 +1088,7 @@ export const InvoicesPage = () => {
                   disabled={isSubmitting}
                   sx={{ borderRadius: 2, py: 1.5 }}
                 >
-                  {isSubmitting ? "جاري الإنشاء..." : "إنشاء"}
+                  {isSubmitting ? "جاري الحفظ..." : (editingInvoiceId ? "حفظ التعديلات" : "إنشاء")}
                 </Button>
               </Stack>
             </Stack>
@@ -1039,30 +1163,7 @@ export const InvoicesPage = () => {
       >
         {selectedInvoice &&
           (() => {
-            const isTempClient = selectedInvoice.clientId.startsWith("temp-");
-            let previewClient = clients.find(
-              (c) => c.id === selectedInvoice.clientId
-            );
-
-            // If temp client, extract info from notes (stored in special format)
-            if (isTempClient && !previewClient && selectedInvoice.notes) {
-              // Extract temp client info from special format: __TEMP_CLIENT__name:xxx__phone:yyy__
-              const tempClientMatch = selectedInvoice.notes.match(
-                /__TEMP_CLIENT__name:(.+?)__phone:(.+?)__/
-              );
-              if (tempClientMatch) {
-                previewClient = {
-                  id: selectedInvoice.clientId,
-                  name: tempClientMatch[1].trim(),
-                  phone: tempClientMatch[2].trim(),
-                  email: "",
-                  address: "",
-                  type: "individual",
-                  createdAt: "",
-                  updatedAt: "",
-                } as Client;
-              }
-            }
+            const previewClient = getInvoiceClient(selectedInvoice, clients);
 
             if (!previewClient) return null;
 
@@ -1089,6 +1190,30 @@ export const InvoicesPage = () => {
                     >
                       معاينة الفاتورة
                     </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<WhatsApp />}
+                      onClick={() =>
+                        sharePdfToWhatsApp(
+                          <InvoiceStyledPDF invoice={selectedInvoice} client={previewClient} />,
+                          `invoice-${selectedInvoice.invoiceNumber}.pdf`,
+                          {
+                            phone: previewClient.phone,
+                            title: `فاتورة ${selectedInvoice.invoiceNumber}`,
+                            text: `فاتورة ${selectedInvoice.invoiceNumber} للعميل ${previewClient.name}`,
+                          }
+                        )
+                      }
+                      sx={{
+                        bgcolor: "#25d366",
+                        color: "#102418",
+                        fontWeight: 800,
+                        "&:hover": { bgcolor: "#20bd5a" },
+                      }}
+                    >
+                      واتساب
+                    </Button>
                     <Button
                       variant="contained"
                       size="small"

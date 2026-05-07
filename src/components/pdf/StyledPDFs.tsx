@@ -8,7 +8,8 @@ import {
   PdfBrandedReportHeader,
   pdfBrandStyles as s,
   pdfFmtDate,
-  pdfFmtMoneyLibyan,
+  pdfFmtNum,
+  PdfMoneyText,
 } from "./pdfBrandKit";
 
 const payLabel = (m: string) => paymentMethods[m as keyof typeof paymentMethods] ?? m;
@@ -81,8 +82,10 @@ export const InvoiceStyledPDF = ({ invoice, client }: { invoice: Invoice; client
       </View>
       {invoice.items.map((item, i) => (
         <View key={item.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-          <Text style={[s.tdBold, ci.total]}>{pdfFmtMoneyLibyan(item.total)}</Text>
-          <Text style={[s.td, ci.price]}>{pdfFmtNumPlain(item.unitPrice)}</Text>
+          <View style={[ci.total, { flexDirection: 'row' }]}>
+            <PdfMoneyText amount={item.total} style={s.tdBold} />
+          </View>
+          <PdfMoneyText amount={item.unitPrice} style={s.td} containerStyle={ci.price} />
           <Text style={[s.td, ci.qty]}>{item.quantity}</Text>
           <Text style={[s.tdBold, ci.desc]}>{item.description}</Text>
         </View>
@@ -90,25 +93,31 @@ export const InvoiceStyledPDF = ({ invoice, client }: { invoice: Invoice; client
 
       <View style={s.totalsBox}>
         <View style={s.totalLine}>
+          <View style={{ flexDirection: 'row' }}>
+            <PdfMoneyText amount={invoice.subtotal} style={s.grandAmt} />
+          </View>
           <Text style={s.grandLbl}>المجموع الفرعي</Text>
-          <Text style={s.grandAmt}>{pdfFmtMoneyLibyan(invoice.subtotal)}</Text>
         </View>
         {invoice.taxAmount > 0 ? (
           <View style={s.totalLine}>
+            <PdfMoneyText amount={invoice.taxAmount} style={s.grandAmt} />
             <Text style={s.grandLbl}>ضريبة ({invoice.taxRate}%)</Text>
-            <Text style={s.grandAmt}>{pdfFmtMoneyLibyan(invoice.taxAmount)}</Text>
           </View>
         ) : null}
         <View style={s.grandBar}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <PdfMoneyText amount={invoice.total} style={[s.grandAmt, { fontSize: 15 }]} />
+          </View>
           <Text style={[s.grandLbl, { fontSize: 12 }]}>الإجمالي النهائي</Text>
-          <Text style={[s.grandAmt, { fontSize: 15 }]}>{pdfFmtMoneyLibyan(invoice.total)}</Text>
         </View>
       </View>
 
       {invoice.notes ? (
         <View style={s.notesBox}>
           <Text style={s.notesLbl}>ملاحظات</Text>
-          <Text style={s.notesTxt}>{invoice.notes}</Text>
+          <Text style={s.notesTxt}>
+            {invoice.notes.replace(/__TEMP_CLIENT__name:.+?__phone:.+?__/g, "").trim()}
+          </Text>
         </View>
       ) : null}
 
@@ -150,7 +159,11 @@ export const ExpensesStyledPDF = ({ client, expenses }: { client: Client; expens
           </View>
           <View style={[s.summaryCard, { borderTopWidth: 3, borderTopColor: dangerColor, backgroundColor: "#fffcfc" }]}>
             <Text style={s.summaryLabel}>إجمالي المصروفات</Text>
-            <Text style={[s.summaryValue, { color: dangerColor }]}>{pdfFmtMoneyLibyan(total)}</Text>
+            <PdfMoneyText
+              amount={total}
+              style={[s.summaryValue, { color: dangerColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
         </View>
 
@@ -164,7 +177,7 @@ export const ExpensesStyledPDF = ({ client, expenses }: { client: Client; expens
         </View>
         {expenses.map((e, i) => (
           <View key={e.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-            <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(e.amount)}</Text>
+            <PdfMoneyText amount={e.amount} style={s.tdBold} containerStyle={ci.amt} />
             <Text style={[s.td, ci.dt]}>{pdfFmtDate(e.date)}</Text>
             <Text style={[s.td, ci.cat]}>{e.category || "—"}</Text>
             <Text style={[s.td, ci.note]}>{e.notes || "—"}</Text>
@@ -172,7 +185,7 @@ export const ExpensesStyledPDF = ({ client, expenses }: { client: Client; expens
           </View>
         ))}
         <View style={s.totalRow}>
-          <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(total)}</Text>
+          <PdfMoneyText amount={total} style={s.tdBold} containerStyle={ci.amt} currStyle={{ fontSize: 10, color: "#1a1f1a" }} />
           <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>إجمالي المصروفات</Text>
         </View>
 
@@ -211,7 +224,11 @@ export const PaymentsStyledPDF = ({ client, payments }: { client: Client; paymen
           </View>
           <View style={[s.summaryCard, { borderTopWidth: 3, borderTopColor: successColor, backgroundColor: "#f5fbf8" }]}>
             <Text style={s.summaryLabel}>إجمالي الوارد</Text>
-            <Text style={[s.summaryValue, { color: successColor }]}>{pdfFmtMoneyLibyan(total)}</Text>
+            <PdfMoneyText
+              amount={total}
+              style={[s.summaryValue, { color: successColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
         </View>
 
@@ -224,14 +241,14 @@ export const PaymentsStyledPDF = ({ client, payments }: { client: Client; paymen
         </View>
         {payments.map((p, i) => (
           <View key={p.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-            <Text style={[s.tdPos, ci.amt]}>{pdfFmtMoneyLibyan(p.amount)}</Text>
+            <PdfMoneyText amount={p.amount} style={s.tdPos} containerStyle={ci.amt} />
             <Text style={[s.td, ci.dt]}>{pdfFmtDate(p.paymentDate)}</Text>
             <Text style={[s.td, ci.meth]}>{payLabel(p.paymentMethod)}</Text>
             <Text style={[s.td, ci.pnote]}>{p.notes || "—"}</Text>
           </View>
         ))}
         <View style={s.totalRow}>
-          <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(total)}</Text>
+          <PdfMoneyText amount={total} style={s.tdBold} containerStyle={ci.amt} currStyle={{ fontSize: 10, color: "#1a1f1a" }} />
           <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>الإجمالي</Text>
         </View>
 
@@ -363,39 +380,51 @@ export const ClientFinalStyledPDF = ({
         <View style={[s.summaryRow, { flexWrap: "wrap" }]}>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>المصروفات المعتمدة</Text>
-            <Text style={[s.summaryValue, { color: dangerColor }]}>
-              {pdfFmtMoneyLibyan(totalExpenses)}
-            </Text>
+            <PdfMoneyText
+              amount={totalExpenses}
+              style={[s.summaryValue, { color: dangerColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>النسبة المتفق عليها ({profitPercentage}%)</Text>
-            <Text style={[s.summaryValue, { color: accentColor }]}>
-              {pdfFmtMoneyLibyan(profit)}
-            </Text>
+            <PdfMoneyText
+              amount={profit}
+              style={[s.summaryValue, { color: accentColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>إجمالي المقبوض</Text>
-            <Text style={[s.summaryValue, { color: successColor }]}>
-              {pdfFmtMoneyLibyan(totalPaid)}
-            </Text>
+            <PdfMoneyText
+              amount={totalPaid}
+              style={[s.summaryValue, { color: successColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>إجمالي الديون</Text>
-            <Text style={[s.summaryValue, { color: primaryColor }]}>
-              {pdfFmtMoneyLibyan(totalDebts)}
-            </Text>
+            <PdfMoneyText
+              amount={totalDebts}
+              style={[s.summaryValue, { color: primaryColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>متبقي الديون</Text>
-            <Text style={[s.summaryValue, { color: dangerColor }]}>
-              {pdfFmtMoneyLibyan(remainingDebts)}
-            </Text>
+            <PdfMoneyText
+              amount={remainingDebts}
+              style={[s.summaryValue, { color: dangerColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
           <View style={[s.summaryCard, { minWidth: "31%" }]}>
             <Text style={s.summaryLabel}>إجمالي الالتزامات</Text>
-            <Text style={[s.summaryValue, { color: primaryColor }]}>
-              {pdfFmtMoneyLibyan(obligations)}
-            </Text>
+            <PdfMoneyText
+              amount={obligations}
+              style={[s.summaryValue, { color: primaryColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
         </View>
 
@@ -417,9 +446,11 @@ export const ClientFinalStyledPDF = ({
                 style={[s.tableRow, i % 2 !== 0 && s.rowEven]}
                 wrap={false}
               >
-                <Text style={[s.tdBold, Cf.amt, { color: dangerColor }]}>
-                  {pdfFmtMoneyLibyan(e.amount)}
-                </Text>
+                <PdfMoneyText
+                  amount={e.amount}
+                  style={[s.tdBold, { color: dangerColor }]}
+                  containerStyle={Cf.amt}
+                />
                 <Text style={[s.td, Cf.dt]}>{pdfFmtDate(e.date)}</Text>
                 <Text style={[s.td, Cf.cat]}>{e.category || "—"}</Text>
                 <Text style={[s.td, Cf.note]}>{e.notes || "—"}</Text>
@@ -428,7 +459,7 @@ export const ClientFinalStyledPDF = ({
               </View>
             ))}
             <View style={s.totalRow} wrap={false}>
-              <Text style={[s.tdBold, Cf.amt]}>{pdfFmtMoneyLibyan(totalExpenses)}</Text>
+              <PdfMoneyText amount={totalExpenses} style={s.tdBold} containerStyle={Cf.amt} />
               <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>
                 إجمالي المصروفات
               </Text>
@@ -455,7 +486,7 @@ export const ClientFinalStyledPDF = ({
                 style={[s.tableRow, i % 2 !== 0 && s.rowEven]}
                 wrap={false}
               >
-                <Text style={[s.tdPos, Cf.amt]}>{pdfFmtMoneyLibyan(p.amount)}</Text>
+                <PdfMoneyText amount={p.amount} style={s.tdPos} containerStyle={Cf.amt} />
                 <Text style={[s.td, Cf.dt]}>{pdfFmtDate(p.paymentDate)}</Text>
                 <Text style={[s.td, Cf.meth]}>{payLabel(p.paymentMethod)}</Text>
                 <Text style={[s.td, Cf.pnote]}>{p.notes || "—"}</Text>
@@ -463,7 +494,7 @@ export const ClientFinalStyledPDF = ({
               </View>
             ))}
             <View style={s.totalRow} wrap={false}>
-              <Text style={[s.tdBold, Cf.amt]}>{pdfFmtMoneyLibyan(totalPaid)}</Text>
+              <PdfMoneyText amount={totalPaid} style={s.tdBold} containerStyle={Cf.amt} />
               <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>
                 إجمالي المقبوض
               </Text>
@@ -492,11 +523,13 @@ export const ClientFinalStyledPDF = ({
                 style={[s.tableRow, i % 2 !== 0 && s.rowEven]}
                 wrap={false}
               >
-                <Text style={[s.tdBold, Cf.amt, { color: dangerColor }]}>
-                  {pdfFmtMoneyLibyan(d.remainingAmount)}
-                </Text>
-                <Text style={[s.tdPos, Cf.amt]}>{pdfFmtMoneyLibyan(d.paidAmount)}</Text>
-                <Text style={[s.tdBold, Cf.amt]}>{pdfFmtMoneyLibyan(d.amount)}</Text>
+                <PdfMoneyText
+                  amount={d.remainingAmount}
+                  style={[s.tdBold, { color: dangerColor }]}
+                  containerStyle={Cf.amt}
+                />
+                <PdfMoneyText amount={d.paidAmount} style={s.tdPos} containerStyle={Cf.amt} />
+                <PdfMoneyText amount={d.amount} style={s.tdBold} containerStyle={Cf.amt} />
                 <Text style={[s.td, Cf.dt]}>{pdfFmtDate(d.date)}</Text>
                 <Text
                   style={[
@@ -515,11 +548,13 @@ export const ClientFinalStyledPDF = ({
               </View>
             ))}
             <View style={s.totalRow} wrap={false}>
-              <Text style={[s.tdBold, Cf.amt, { color: dangerColor }]}>
-                {pdfFmtMoneyLibyan(remainingDebts)}
-              </Text>
-              <Text style={[s.tdBold, Cf.amt]}>{pdfFmtMoneyLibyan(paidDebts)}</Text>
-              <Text style={[s.tdBold, Cf.amt]}>{pdfFmtMoneyLibyan(totalDebts)}</Text>
+              <PdfMoneyText
+                amount={remainingDebts}
+                style={[s.tdBold, { color: dangerColor }]}
+                containerStyle={Cf.amt}
+              />
+              <PdfMoneyText amount={paidDebts} style={s.tdBold} containerStyle={Cf.amt} />
+              <PdfMoneyText amount={totalDebts} style={s.tdBold} containerStyle={Cf.amt} />
               <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>
                 إجمالي الديون
               </Text>
@@ -553,34 +588,31 @@ export const ClientFinalStyledPDF = ({
 
           <View style={s.totalLine}>
             <Text style={s.grandLbl}>إجمالي المصروفات</Text>
-            <Text style={s.grandAmt}>{pdfFmtMoneyLibyan(totalExpenses)}</Text>
+            <PdfMoneyText amount={totalExpenses} style={s.grandAmt} />
           </View>
           <View style={s.totalLine}>
             <Text style={s.grandLbl}>النسبة المتفق عليها ({profitPercentage}%)</Text>
-            <Text style={s.grandAmt}>{pdfFmtMoneyLibyan(profit)}</Text>
+            <PdfMoneyText amount={profit} style={s.grandAmt} />
           </View>
           <View style={s.totalLine}>
             <Text style={s.grandLbl}>متبقي الديون</Text>
-            <Text style={s.grandAmt}>{pdfFmtMoneyLibyan(remainingDebts)}</Text>
+            <PdfMoneyText amount={remainingDebts} style={s.grandAmt} />
           </View>
           <View style={s.totalLine}>
             <Text style={s.grandLbl}>إجمالي المستحق على العميل</Text>
-            <Text style={[s.grandAmt, { color: primaryColor }]}>
-              {pdfFmtMoneyLibyan(obligations)}
-            </Text>
+            <PdfMoneyText amount={obligations} style={[s.grandAmt, { color: primaryColor }]} />
           </View>
           <View style={s.totalLine}>
             <Text style={s.grandLbl}>إجمالي المقبوض</Text>
-            <Text style={[s.grandAmt, { color: successColor }]}>
-              {pdfFmtMoneyLibyan(totalPaid)}
-            </Text>
+            <PdfMoneyText amount={totalPaid} style={[s.grandAmt, { color: successColor }]} />
           </View>
 
           <View style={s.grandBar}>
             <Text style={[s.grandLbl, { fontSize: 12 }]}>
               {surplus > 0 ? "فائض دفع للعميل" : "الرصيد المتبقي للسداد"}
             </Text>
-            <Text
+            <PdfMoneyText
+              amount={surplus > 0 ? surplus : remaining}
               style={[
                 s.grandAmt,
                 {
@@ -588,11 +620,7 @@ export const ClientFinalStyledPDF = ({
                   color: surplus > 0 ? successColor : remaining > 0 ? dangerColor : primaryColor,
                 },
               ]}
-            >
-              {surplus > 0
-                ? pdfFmtMoneyLibyan(surplus)
-                : pdfFmtMoneyLibyan(remaining)}
-            </Text>
+            />
           </View>
         </View>
 
@@ -638,7 +666,7 @@ export const ExpenseInvoiceStyledPDF = ({ invoice, client }: { invoice: ExpenseI
       </View>
       {invoice.expenses.map((e, i) => (
         <View key={e.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-          <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(e.amount)}</Text>
+          <PdfMoneyText amount={e.amount} style={s.tdBold} containerStyle={ci.amt} />
           <Text style={[s.td, ci.cat]}>{e.category || "—"}</Text>
           <Text style={[s.td, ci.dt]}>{pdfFmtDate(e.date)}</Text>
           <Text style={[s.tdBold, ci.desc]}>{e.description}</Text>
@@ -647,13 +675,15 @@ export const ExpenseInvoiceStyledPDF = ({ invoice, client }: { invoice: ExpenseI
 
       <View style={s.grandBar}>
         <Text style={s.grandLbl}>المبلغ الإجمالي المستحق</Text>
-        <Text style={[s.grandAmt, { color: primaryColor }]}>{pdfFmtMoneyLibyan(invoice.totalAmount)}</Text>
+        <PdfMoneyText amount={invoice.totalAmount} style={[s.grandAmt, { color: primaryColor }]} />
       </View>
 
       {invoice.notes ? (
         <View style={s.notesBox}>
           <Text style={s.notesLbl}>ملاحظات</Text>
-          <Text style={s.notesTxt}>{invoice.notes}</Text>
+          <Text style={s.notesTxt}>
+            {invoice.notes.replace(/__TEMP_CLIENT__name:.+?__phone:.+?__/g, "").trim()}
+          </Text>
         </View>
       ) : null}
 
@@ -676,7 +706,11 @@ export const PaymentsSummaryStyledPDF = ({ payments, clients }: { payments: Paym
           </View>
           <View style={[s.summaryCard, { borderTopWidth: 3, borderTopColor: successColor }]}>
             <Text style={s.summaryLabel}>إجمالي المبالغ</Text>
-            <Text style={[s.summaryValue, { color: successColor }]}>{pdfFmtMoneyLibyan(total)}</Text>
+            <PdfMoneyText
+              amount={total}
+              style={[s.summaryValue, { color: successColor }]}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
         </View>
 
@@ -688,14 +722,14 @@ export const PaymentsSummaryStyledPDF = ({ payments, clients }: { payments: Paym
         </View>
         {payments.map((p, i) => (
           <View key={p.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-            <Text style={[s.tdPos, ci.amt]}>{pdfFmtMoneyLibyan(p.amount)}</Text>
+            <PdfMoneyText amount={p.amount} style={s.tdPos} containerStyle={ci.amt} />
             <Text style={[s.td, ci.dt]}>{pdfFmtDate(p.paymentDate)}</Text>
             <Text style={[s.td, ci.meth]}>{payLabel(p.paymentMethod)}</Text>
             <Text style={[s.tdBold, ci.cClient]}>{clients.find((c) => c.id === p.clientId)?.name || "—"}</Text>
           </View>
         ))}
         <View style={s.totalRow}>
-          <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(total)}</Text>
+          <PdfMoneyText amount={total} style={s.tdBold} containerStyle={ci.amt} />
           <Text style={[s.tdBold, { flex: 1, textAlign: "right" }]}>الإجمالي العام</Text>
         </View>
 
@@ -725,7 +759,11 @@ export const ExpenseInvoicesSummaryStyledPDF = ({
           </View>
           <View style={s.summaryCard}>
             <Text style={s.summaryLabel}>مجموع المبالغ</Text>
-            <Text style={s.summaryValue}>{pdfFmtMoneyLibyan(sum)}</Text>
+            <PdfMoneyText
+              amount={sum}
+              style={s.summaryValue}
+              containerStyle={{ justifyContent: "center" }}
+            />
           </View>
         </View>
 
@@ -737,7 +775,7 @@ export const ExpenseInvoicesSummaryStyledPDF = ({
         </View>
         {expenseInvoices.map((inv, i) => (
           <View key={inv.id} style={[s.tableRow, i % 2 !== 0 && s.rowEven]}>
-            <Text style={[s.tdBold, ci.amt]}>{pdfFmtMoneyLibyan(inv.totalAmount)}</Text>
+            <PdfMoneyText amount={inv.totalAmount} style={s.tdBold} containerStyle={ci.amt} />
             <Text style={[s.td, ci.cPer]}>{`${pdfFmtDate(inv.startDate)} ← ${pdfFmtDate(inv.endDate)}`}</Text>
             <Text style={[s.td, ci.cClient]}>{clients.find((c) => c.id === inv.clientId)?.name || "—"}</Text>
             <Text style={[s.tdBold, ci.cInv]}>{inv.invoiceNumber}</Text>
