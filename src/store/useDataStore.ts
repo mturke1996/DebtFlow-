@@ -426,8 +426,89 @@ export const useDataStore = create<DataState>()(
       updatePayment: async (id: string, data: Partial<Payment>) => {
         try {
           set({ isLoading: true });
+          const originalPayment = get().payments.find((p) => p.id === id);
           await paymentsService.update(id, data);
-          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+
+          if (originalPayment && (data.amount !== undefined || data.invoiceId !== undefined)) {
+            const originalInvoiceId = originalPayment.invoiceId;
+            const newInvoiceId = data.invoiceId !== undefined ? data.invoiceId : originalInvoiceId;
+            const originalAmount = originalPayment.amount;
+            const newAmount = data.amount !== undefined ? data.amount : originalAmount;
+
+            // 1. Revert original payment
+            if (originalInvoiceId) {
+              const debt = get().debts.find((d) => d.invoiceId === originalInvoiceId);
+              if (debt) {
+                const newPaidAmount = Math.max(0, debt.paidAmount - originalAmount);
+                const newRemainingAmount = debt.totalAmount - newPaidAmount;
+                const newStatus =
+                  newRemainingAmount <= 0
+                    ? "paid"
+                    : newRemainingAmount < debt.totalAmount
+                    ? "partially_paid"
+                    : "unpaid";
+
+                await get().updateDebt(debt.id, {
+                  paidAmount: newPaidAmount,
+                  remainingAmount: newRemainingAmount,
+                  status: newStatus,
+                });
+              }
+
+              const invoice = get().invoices.find((i) => i.id === originalInvoiceId);
+              if (invoice) {
+                const otherPaymentsTotal = get()
+                  .payments.filter((p) => p.invoiceId === originalInvoiceId && p.id !== id)
+                  .reduce((sum, p) => sum + p.amount, 0);
+
+                const newStatus =
+                  otherPaymentsTotal >= invoice.total
+                    ? "paid"
+                    : otherPaymentsTotal > 0
+                    ? "partially_paid"
+                    : (invoice.status === "paid" || invoice.status === "partially_paid" ? "sent" : invoice.status);
+
+                await get().updateInvoice(invoice.id, { status: newStatus });
+              }
+            }
+
+            // 2. Apply updated payment
+            if (newInvoiceId) {
+              const debt = get().debts.find((d) => d.invoiceId === newInvoiceId);
+              if (debt) {
+                const newPaidAmount = debt.paidAmount + newAmount;
+                const newRemainingAmount = debt.totalAmount - newPaidAmount;
+                const newStatus =
+                  newRemainingAmount <= 0
+                    ? "paid"
+                    : newRemainingAmount < debt.totalAmount
+                    ? "partially_paid"
+                    : "unpaid";
+
+                await get().updateDebt(debt.id, {
+                  paidAmount: newPaidAmount,
+                  remainingAmount: newRemainingAmount,
+                  status: newStatus,
+                });
+              }
+
+              const invoice = get().invoices.find((i) => i.id === newInvoiceId);
+              if (invoice) {
+                const otherPaymentsTotal = get()
+                  .payments.filter((p) => p.invoiceId === newInvoiceId && p.id !== id)
+                  .reduce((sum, p) => sum + p.amount, 0) + newAmount;
+
+                const newStatus =
+                  otherPaymentsTotal >= invoice.total
+                    ? "paid"
+                    : otherPaymentsTotal > 0
+                    ? "partially_paid"
+                    : (invoice.status === "paid" || invoice.status === "partially_paid" ? "sent" : invoice.status);
+
+                await get().updateInvoice(invoice.id, { status: newStatus });
+              }
+            }
+          }
           set({ isLoading: false });
         } catch (error) {
           set({ error: "حدث خطأ أثناء تحديث الدفعة", isLoading: false });
@@ -438,8 +519,50 @@ export const useDataStore = create<DataState>()(
       deletePayment: async (id: string) => {
         try {
           set({ isLoading: true });
+          const payment = get().payments.find((p) => p.id === id);
           await paymentsService.delete(id);
-          // لا نحدث الـ state محلياً - سيأتي من Firebase تلقائياً عبر real-time subscription
+
+          if (payment) {
+            // Update associated debt
+            const debt = get().debts.find(
+              (d) => d.invoiceId === payment.invoiceId
+            );
+            if (debt) {
+              const newPaidAmount = Math.max(0, debt.paidAmount - payment.amount);
+              const newRemainingAmount = debt.totalAmount - newPaidAmount;
+              const newStatus =
+                newRemainingAmount <= 0
+                  ? "paid"
+                  : newRemainingAmount < debt.totalAmount
+                  ? "partially_paid"
+                  : "unpaid";
+
+              await get().updateDebt(debt.id, {
+                paidAmount: newPaidAmount,
+                remainingAmount: newRemainingAmount,
+                status: newStatus,
+              });
+            }
+
+            // Update invoice status
+            const invoice = get().invoices.find(
+              (i) => i.id === payment.invoiceId
+            );
+            if (invoice) {
+              const otherPaymentsTotal = get()
+                .payments.filter((p) => p.invoiceId === payment.invoiceId && p.id !== id)
+                .reduce((sum, p) => sum + p.amount, 0);
+
+              const newStatus =
+                otherPaymentsTotal >= invoice.total
+                  ? "paid"
+                  : otherPaymentsTotal > 0
+                  ? "partially_paid"
+                  : (invoice.status === "paid" || invoice.status === "partially_paid" ? "sent" : invoice.status);
+
+              await get().updateInvoice(invoice.id, { status: newStatus });
+            }
+          }
           set({ isLoading: false });
         } catch (error) {
           set({ error: "حدث خطأ أثناء حذف الدفعة", isLoading: false });

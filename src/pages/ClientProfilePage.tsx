@@ -2104,8 +2104,7 @@ export const ClientProfilePage = () => {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    setExpenseToDelete(expense.id);
-                                    setDeleteExpenseDialogOpen(true);
+                                    handleDeleteExpense(expense.id);
                                   } }
                                   sx={{
                                     p: 0.5,
