@@ -359,3 +359,155 @@ input[type="number"] {
   font-family: 'Cairo', sans-serif;
   animation: fadeInUp 0.5s var(--ease-spring);
 }
+
+/* ─── Site closed notice ─── */
+.site-closed {
+  --closed-ink: #172c35;
+  --closed-muted: #687579;
+  --closed-paper: #f5f4ef;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  color: var(--closed-ink);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(255, 255, 255, .96), transparent 48%),
+    var(--closed-paper);
+}
+
+.site-closed::before,
+.site-closed::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(60vw, 560px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(15, 118, 110, .075);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.site-closed::before { top: -32%; inset-inline-start: -22%; }
+.site-closed::after { bottom: -43%; inset-inline-end: -22%; width: min(76vw, 720px); }
+
+.site-closed__container.MuiContainer-root { position: relative; }
+
+.site-closed__content.MuiStack-root {
+  width: 100%;
+  text-align: center;
+  animation: closed-arrive .65s cubic-bezier(.2,.75,.25,1) both;
+}
+
+.site-closed__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #243b49;
+  font-family: 'Outfit', 'Cairo', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  direction: ltr;
+}
+
+.site-closed__brand b { color: #a18345; font-weight: 600; }
+.site-closed__brand img { width: 34px; height: 34px; object-fit: contain; }
+
+.site-closed__art {
+  width: min(100%, 310px);
+  height: 228px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-top: 25px;
+}
+
+.site-closed__art-ring {
+  position: absolute;
+  width: 194px;
+  height: 194px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(236,237,229,.78));
+  box-shadow: 0 22px 70px rgba(38, 57, 53, .08), inset 0 0 0 1px rgba(23,44,53,.06);
+}
+
+.closed-mark { position: relative; width: 270px; max-width: 100%; color: #203c48; overflow: visible; }
+
+.site-closed__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 4px;
+  padding: 7px 12px;
+  border: 1px solid rgba(15,118,110,.12);
+  border-radius: 999px;
+  color: #53706d;
+  background: rgba(15,118,110,.045);
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.site-closed__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b89c5f;
+  box-shadow: 0 0 0 3px rgba(184,156,95,.13);
+}
+
+.site-closed__title.MuiTypography-root {
+  margin-top: 20px;
+  color: var(--closed-ink);
+  font-size: clamp(1.9rem, 7vw, 2.65rem);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -.04em;
+}
+
+.site-closed__description.MuiTypography-root {
+  max-width: 430px;
+  margin-top: 12px;
+  color: var(--closed-muted);
+  font-size: clamp(.95rem, 2.8vw, 1.05rem);
+  line-height: 1.95;
+}
+
+.site-closed__contact.MuiButton-root {
+  min-height: 52px;
+  margin-top: 27px;
+  padding-inline: 22px;
+  border-radius: 14px;
+  color: #fff;
+  background: #0f766e;
+  box-shadow: 0 9px 22px rgba(15,118,110,.18);
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.site-closed__contact.MuiButton-root:hover { background: #0d665f; box-shadow: 0 12px 26px rgba(15,118,110,.23); }
+.site-closed__contact .MuiButton-startIcon { margin-inline-end: 9px; }
+.site-closed__contact .MuiButton-endIcon { margin-inline-start: 8px; }
+
+.site-closed__divider { width: 42px; height: 1px; margin-top: 29px; background: #c7b98f; }
+.site-closed__footnote.MuiTypography-root { margin-top: 14px; color: #7b8582; font-size: .82rem; }
+.site-closed__signature.MuiTypography-root { margin-top: 6px; color: #98a09d; font-size: .72rem; }
+.site-closed__signature span { padding-inline: 4px; color: #b89c5f; }
+
+@keyframes closed-arrive {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+  .site-closed { padding-inline: 22px; }
+  .site-closed__art { height: 205px; margin-top: 18px; }
+  .site-closed__art-ring { width: 174px; height: 174px; }
+  .closed-mark { width: 245px; }
+  .site-closed__contact.MuiButton-root { width: 100%; max-width: 340px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-closed__content.MuiStack-root { animation: none; }
+}
